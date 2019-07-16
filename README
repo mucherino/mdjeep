@@ -1,5 +1,103 @@
+MD-jeep, version 0.1
+Branch & Prune algorithm for distance geometry.
+Copyright (C) 2010, Mucherino, Liberti, Lavor, Maculan
+GNU General Public License v.2
 
-MDjeep -- A software for Distance Geometry
+This program solves Discretizable Molecular Distance Geometry Problems (DMDGPs).
 
-Antonio Mucherino
+In the current version (0.1), only instances containing exact values for the distances can be solved.
+
+syntax: ./bp [options] instance.nmr
+
+NMR file format: list of distances [i j iatom jatom iamino jamino l u]
+  where:
+* i is the label of the first atom
+* j is the label of the second atom
+* iatom is the name of the atom i (3 letter format)
+* jatom is the name of the atom j (3 letter format)
+* iamino is the amino acid where atom i is contained
+* jamino is the amino acid where atom j is contained
+* l is the lower bound on the distance (i,j)
+* u is the upper bound on the distance (i,j)
+  (in this version, l and u must be the same)
+
+Options:
+-e sets the tolerance epsilon
+-p prints the best found solution in a PDB file
+-P prints all the solutions in different PDB files
+-s symmetric solutions are not computed
+-t triangular inequalities are checked
+-1 the algorithm stops at the first solution
+   (when using -1, options -p and -P have the same effect)
+
+In the following versions:
+* management of instances affected by experimental errors
+* management of instances with inexact distances
+
+This is a free sofware under the GNU General Public License v.2
+If you refer to this sofware in your publications, please quote the
+appropriate paper (or more than one paper) from the following list.
+
+List of publications on the Branch & Prune and the DMDGP:
+
+* C. Lavor, A. Mucherino, L. Liberti, N. Maculan, 
+  Discrete Approaches for Solving Molecular Distance Geometry Problems using NMR Data, 
+  to appear in International Journal of Computational Biosciences, 2010.
+
+* L. Liberti, C. Lavor, A. Mucherino, N. Maculan, 
+  Molecular Distance Geometry Methods: from Continuous to Discrete, 
+  to appear in International Transactions in Operational Research, 2010.
+
+* A. Mucherino, C. Lavor, L. Liberti, N. Maculan, 
+  On the Definition of Artificial Backbones for the Discretizable Molecular Distance Geometry Problem, 
+  Mathematica Balkanica 23 (3-4), 289-302, 2009. 
+
+* A. Mucherino, C. Lavor, L. Liberti, and E.-G. Talbi, 
+  A Parallel Version of the Branch & Prune Algorithm for the Molecular Distance Geometry Problem, 
+  IEEE Conference Proceedings, ACS/IEEE International Conference on Computer Systems and Applications (AICCSA10), 
+  Hammamet, Tunisia, May 2010.
+
+* C. Lavor, A. Mucherino, L. Liberti, and N. Maculan, 
+  An Artificial Backbone of Hydrogens for Finding the Conformation of Protein Molecules, 
+  IEEE Conference Proceedings, Computational Structural Bioinformatics Workshop (CSBW09), 
+  Washington D.C., USA, 152-155, 2009.
+
+* A. Mucherino, C. Lavor, 
+  The Branch and Prune Algorithm for the Molecular Distance Geometry Problem with Inexact Distances, 
+  Proceedings of World Academy of Science, Engineering and Technology 58, International Conference on Bioinformatics and Biomedicine (ICBB09), 
+  Venice, Italy, 349-353, 2009.
+
+* C. Lavor, A. Mucherino, L. Liberti, and N. Maculan, 
+  Computing Artificial Backbones of Hydrogen Atoms in order to Discover Protein Backbones, 
+  IEEE Conference Proceedings, International Multiconference on Computer Science and Information Technology (IMCSIT09), 
+  Workshop on Computational Optimization (WCO09), 
+  Mragowo, Poland, 751-756, 2009.
+
+* A. Mucherino, L. Liberti, C. Lavor, and N. Maculan, 
+  Comparisons between an Exact and a Meta-Heuristic Algorithm for the Molecular Distance Geometry Problem, 
+  ACM Conference Proceedings, Genetic and Evolutionary Computation Conference (GECCO09), 
+  Montreal, Canada, 333-340, 2009.
+
+* C. Lavor, L. Liberti, A. Mucherino, and N. Maculan, 
+  On a Discretizable Subclass of Instances of the Molecular Distance Geometry Problem, 
+  ACM Conference Proceedings, 24th Annual ACM Symposium on Applied Computing, 
+  Hawaii, USA, 804-805, 2009.
+
+* A. Mucherino, C. Lavor, L. Liberti, E.-G. Talbi, 
+  On Suitable Parallel Implementations of the Branch & Prune Algorithm for Distance Geometry, 
+  Proceedings of the Grid5000 Spring School, Lille, France, April 2010. 
+
+* A. Mucherino, C. Lavor, L. Liberti, and N. Maculan, 
+  A Discrete Approach for Finding the Conformation of Molecules from NMR Data, 
+  Proceedings of the conference ROADEF 2010, Toulouse, France, February 2010.
+
+* A. Mucherino, C. Lavor and N. Maculan, 
+  The Molecular Distance Geometry Problem Applied to Protein Conformations, 
+  Proceedings of the 8th Cologne-Twente Workshop on Graphs and Combinatorial Optimization (CTW09), 
+  S. Cafieri, A. Mucherino, G. Nannicini, F. Tarissan, L. Liberti (Eds.), 337-240, Paris, France, 2009.
+
+* C. Lavor, L. Liberti, A. Mucherino, and N. Maculan, 
+  Recent Results on the Discretizable Molecular Distance Geometry Problem, 
+  Proceedings of the conference ROADEF 2009, Nancy, France, 283-284, 2009. 
+
 
