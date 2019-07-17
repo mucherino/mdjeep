@@ -1,0 +1,12 @@
+Collection of test problems for MD-jeep (version 0.1)
+
+Each instance has been created articially as follows:
+- the PDB file related to the corresponding protein has been downloaded from the Protein Data Bank
+- the backbone atoms N-C_{alpha}-C of the protein have been extracted
+- all the possible distances between pairs of backbone atoms have been computed
+- only distances smaller than 6 Angstrom have been considered
+
+May 01, 2010
+
+Mucherino, Liberti, Lavor, Maculan
+

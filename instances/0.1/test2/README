@@ -1,0 +1,18 @@
+Collection of test problems for MD-jeep (from version 0.1)
+
+Each instance has been created articially as follows:
+- the PDB file related to the corresponding protein has been downloaded from the Protein Data Bank
+- all backbone atoms of the protein have been extracted (including hydrogen atoms)
+- all distances related to bond lengths, bond angles and torsion angles have been included in the instance
+- all the possible distances between pairs of hydrogen atoms have been computed,
+  and distances falling in the interval [2,5] Angstroms have been considered
+- the atoms have been sorted by following the discretization order published in:
+  A. Mucherino,
+  "On the Identification of Discretization Orders for Distance Geometry with Intervals",
+  Lecture Notes in Computer Science 8085, F. Nielsen and F. Barbaresco (Eds.),
+  Proceedings of Geometric Science of Information (GSI13), Paris, France, 231-238, 2013.
+
+May 10, 2014
+
+Mucherino, Liberti, Goncalves, Lavor, Maculan
+
