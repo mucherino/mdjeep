@@ -1,18 +1,10 @@
 
-MDjeep version 0.1
+MDjeep version 0.2
 Bug report
 
 BUG1 (found by Douglas Goncalves)
-In function main, the integer "m" is not initialized to 0.
-When the compiler does not assign 0 to m automatically,
-MD-jeep may not work properly.
-
-BUG2 (found by Virginia Costa)
-In the output files, the BP tree path (specified by +'s and -'s) is not correct from the 2nd row. 
-This is due to a bug in the piece of code between lines 64 and 80 in printfile.c
-
-BUG3 (found by Douglas Goncalves)
 The description of the input files is not correct
 (the information about the distances is not given in the correct order).
 Please refer to the test problems to see the correct format.
+This bug was inherited from version 0.1
 

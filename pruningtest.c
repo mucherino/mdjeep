@@ -1,11 +1,12 @@
-/****************************************************************************
+/********************************************************************************************
   Name:       MD-jeep
-              the Branch & Prune algorithm for the DMDGP - pruning test
-  Author:     Antonio Mucherino, Leo Liberti, Carlile Lavor, Nelson Maculan
+              the Branch & Prune algorithm for discretizable Distance Geometry - pruning test
+  Author:     A. Mucherino, L. Liberti, D.S. Goncalves, C. Lavor, N. Maculan
   Sources:    ansi C
   License:    GNU General Public License v.2
   History:    May 01 2010  v.0.1  first release
-*****************************************************************************/
+              May 10 2014  v.0.2  no changes w.r.t previous version
+*********************************************************************************************/
 
 #include "bp.h"
 
