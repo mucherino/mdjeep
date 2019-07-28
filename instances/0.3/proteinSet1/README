@@ -1,0 +1,13 @@
+
+This set of instances is released with the version 0.3.0 of MDjeep
+
+The instances have been generated as described in:
+
+A. Mucherino, J-H. Lin, 
+An Efficient Exhaustive Search for the Discretizable Distance Geometry Problem with Interval Data,
+to appear in IEEE Conference Proceedings, Federated Conference on Computer Science and Information Systems (FedCSIS19), 
+Workshop on Computational Optimization (WCO19), Leipzig, Germany, September 2019. 
+
+The experiments presented in this paper, however, were obtained with a previous (and still experimental) version
+of MDjeep. The results obtained with the current version and those presented in the paper may therefore differ.
+

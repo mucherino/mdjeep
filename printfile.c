@@ -1,93 +1,103 @@
-/**************************************************************************************************
+/********************************************************************************************************
   Name:       MD-jeep
-              the Branch & Prune algorithm for discretizable Distance Geometry - printing PDB files
-  Author:     A. Mucherino, L. Liberti, D.S. Goncalves, C. Lavor, N. Maculan
+              the Branch & Prune algorithm for discretizable Distance Geometry - functions to print
+  Author:     A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
   Sources:    ansi C
-  License:    GNU General Public License v.2
-  History:    May 01 2010  v.0.1  first release
-              May 10 2014  v.0.2  binary representation of solutions corrected
-                                  naive amino acid counter removed
-***************************************************************************************************/
+  License:    GNU General Public License v.3
+  History:    May 01 2010  v.0.1    first release
+              May 10 2014  v.0.2    binary representation of solutions corrected
+  History:    Jul 28 2019  v.0.3.0  generic function "printfile" added, some modifications on "printpdb"
+*********************************************************************************************************/
 
 #include "bp.h"
 
-int cut = 50;
-
-int printpdb(int n,SOLUTION *sol,double lde,char *filename,int s)
+// print solutions with all vertex attributes in a text file
+// (s=0 : prints only one solution; solution number s>0 : prints multiple solutions in the same file)
+void printfile(int n,VERTEX *v,double **X,char *filename,int s)
 {
    int i,k;
-   char file[1000],pdb[1000];
+   char *outfile;
    FILE *output;
 
-   // removing the path from the file name
-   k = strlen(filename) - 1;
-   while (k > 0 && filename[k] != '/')  k--;
-   if (k == 0)  sprintf(file,"%s",filename);
-   if (k != 0)  strncpy(file,&filename[k+1],strlen(filename)-k);
-   file[strlen(filename)-k] = '\0';
+   // file name (txt extension)
+   outfile = (char*)calloc(strlen(filename)+5,sizeof(char));
+   for (k = 0; k < strlen(filename); k++)  outfile[k] = filename[k];
+   outfile[k] = '.';  k++;
+   outfile[k] = 't';  k++;
+   outfile[k] = 'x';  k++;
+   outfile[k] = 't';
 
-   // removing extensions from the file name
-   k = 0;
-   while (k < strlen(file) && file[k] != '.')  k++;
-   if (k != strlen(file)-1)  strncpy(pdb,&file[0],k);
-   pdb[k] = '\0';
-
-   // creating new file name
-   if (s == 0)   // only the best solution is printed
-   {
-      sprintf(file,"%s_best.pdb",pdb);
-   }
+   // opening output file (rewriting or appending)
+   if (s < 2)
+      output = fopen(outfile,"w");
    else
+      output = fopen(outfile,"a");
+   if (output == NULL)
    {
-      sprintf(file,"%s_%d.pdb",pdb,s);
+      fprintf(stderr,"printfile: error while opening file '%s' to write\n",filename);
+      abort();
    };
 
-   // opening the pdb file
-   output = fopen(file,"w");
-   if (output == NULL)  return 1;
-
-   // writing the file
-   fprintf(output,"HEADER      MD-jeep version 0.2\n");
-   fprintf(output,"REMARK   1 \n");
-   fprintf(output,"REMARK   1  Branch and Prune for Distance Geometry\n");
-   fprintf(output,"REMARK   1 \n");
-   fprintf(output,"REMARK   1  by: Mucherino, Liberti, Goncalves, Lavor, Maculan\n");
-   fprintf(output,"REMARK   1 \n");
-   fprintf(output,"REMARK   1  filename: '%s'\n",file);
-   fprintf(output,"REMARK   1 \n");
-   if (s == 0)  fprintf(output,"REMARK   1  This is the best found solution\n");
-   if (s != 0)  fprintf(output,"REMARK   1  Solution number = %d\n",s);
-   fprintf(output,"REMARK   1  LDE function = %g\n",lde);
-   fprintf(output,"REMARK   1 \n");
-
-   // printing the choices (left/right,+/-) on the binary tree for this solution 
-   fprintf(output,"REMARK   2  Sequence of choices on the binary tree:\n");
-   fprintf(output,"REMARK   2 \n");
-   fprintf(output,"REMARK   2   ");
+   // writing file
+   if (s != 0)  fprintf(output,"MODEL %d\n",s);
    for (i = 0; i < n; i++)
    {
-      if (sol[i].branch == -1)
-      {
-         fprintf(output,"+");
-      }
-      else
-      {
-         fprintf(output,"-");
-      };
-      if ((i+1)%cut == 0)  fprintf(output,"\nREMARK   2   ");
+      fprintf(output," %3d %4s %3d %5s  %13.9lf %13.9lf %13.9lf\n",v[i].Id,v[i].Name,v[i].groupId,v[i].Group,X[0][i],X[1][i],X[2][i]);
    };
-   fprintf(output,"\nREMARK   2 \n");
-   
-   // writing the PDB file
-   for (i = 0; i < n; i++)
-   {
-      fprintf(output,"ATOM   %4d  %-3s %-3s          %8.3lf%8.3lf%8.3lf \n",i+1,sol[i].atom,sol[i].amino,sol[i].x,sol[i].y,sol[i].z);
-   };
-
-   // closing the file
    fclose(output);
-
-   return 0;
+   free(outfile);
 };
- 
+
+// print solutions in PDB format
+// (s=0 : prints only one solution; solution number s>0 : prints multiple solutions in the same file)
+void printpdb(int n,VERTEX *v,double **X,char *filename,int s)
+{
+   int i,k;
+   char *outfile;
+   FILE *output;
+
+   // file name (pdb extension)
+   outfile = (char*)calloc(strlen(filename)+5,sizeof(char));
+   for (k = 0; k < strlen(filename); k++)  outfile[k] = filename[k];
+   outfile[k] = '.';  k++;
+   outfile[k] = 'p';  k++;
+   outfile[k] = 'd';  k++;
+   outfile[k] = 'b';
+
+   // opening output file (rewriting or appending)
+   if (s < 2)
+      output = fopen(outfile,"w");
+   else
+      output = fopen(outfile,"a");
+   if (output == NULL)
+   {
+      fprintf(stderr,"printfile: error while opening file '%s' to write\n",filename);
+      abort();
+   };
+
+   // writing header file (only if new file or overwriting)
+   if (s < 2)
+   {
+      fprintf(output,"HEADER      MD-jeep version 0.3.0\n");
+      fprintf(output,"REMARK   1 \n");
+      fprintf(output,"REMARK   1  Branch and Prune for Discretizable Distance Geometry\n");
+      fprintf(output,"REMARK   1 \n");
+      fprintf(output,"REMARK   1  by: Mucherino, Goncalves, Lavor, Liberti, Lin, Maculan\n");
+      fprintf(output,"REMARK   1 \n");
+      fprintf(output,"REMARK   1  filename: '%s'\n",outfile);
+      fprintf(output,"REMARK   1 \n");
+   };
+
+   // writing the PDB model
+   if (s != 0)  fprintf(output,"MODEL%9d\n",s);
+   for (i = 0; i < n; i++)
+   {
+      fprintf(output,"%-6s%5d  %-4s%-3s %s%4d    %8.3f%8.3f%8.3f \n","ATOM",v[i].Id,v[i].Name,v[i].Group,"A",v[i].groupId,X[0][i],X[1][i],X[2][i]);
+   };
+   if (s != 0)  fprintf(output,"ENDMDL%8d\n",s);
+
+   // ending
+   fclose(output);
+   free(outfile);
+};
 

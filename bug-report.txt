@@ -1,10 +1,6 @@
 
-MDjeep version 0.2
+MDjeep version 0.3.*
 Bug report
 
-BUG1 (found by Douglas Goncalves)
-The description of the input files is not correct
-(the information about the distances is not given in the correct order).
-Please refer to the test problems to see the correct format.
-This bug was inherited from version 0.1
+No bugs found up to now
 

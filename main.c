@@ -1,71 +1,86 @@
-/***************************************************************************************************
+/****************************************************************************************************
   Name:       MD-jeep
               the Branch & Prune algorithm for discretizable Distance Geometry - main program
-  Author:     A. Mucherino, L. Liberti, D.S. Goncalves, C. Lavor, N. Maculan
+  Author:     A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
   Sources:    ansi C
-  License:    GNU General Public License v.2
-  History:    May 01 2010  v.0.1  first release
-              May 10 2014  v.0.2  method based on change of basis added for coordinate computation
-                                  more robust check on input instances added (atom and amino labels)
-****************************************************************************************************/
+  License:    GNU General Public License v.3
+  History:    May 01 2010  v.0.1    first release
+              May 10 2014  v.0.2    method based on change of basis added for coordinate computation
+                                    more robust check on input instances added
+              Jul 28 2019  v.0.3.0  main adapted for BP with interval distances
+                                    more efficient organization of the data structures
+*****************************************************************************************************/
 
 #include "bp.h"
 
+int K = 3;
 double INFTY = 1.e+30;
 
 int main(int argc, char *argv[])
 {
-   int i,j,k;
-   int ij,jk,ki;
-   int n,m;
+   int i,j;
+   int I,J;
+   int gi,gj;
+   int k,ke;
+   int n,n0,m;
+   int nexact;
+   int enoughe,enough;
+   int eof;
    int fidx;
-   int fly,enough;
-   int consecutivity;
-   int **ind;
-   double **Q;
-   double time;
+   bool consecutivity;
+   double **X;
    double val1,val2;
-   char ch1[4],ch2[4];
-   char ch3[4],ch4[4];
-   long t1,t2;
-   PROBL *p;
-   SOLUTION *sol;
+   char ch[4][20];
+   char *timestring;
+   REFERENCE *ref;
+   VERTEX *v;
+   SEARCH S;
    OPTION op;
    INFORMATION info;
-   PARTIALDE *plde;
+   REFERENCE *r1,*r2,*r3;
+   struct timeval t1,t2;
    FILE *input;
 
-   // starting
-   fprintf(stderr,"MD-jeep v0.2\n");
-   fprintf(stderr,"GNU General Public License\n");
-   fprintf(stderr,"Copyright (C) Mucherino, Liberti, Goncalves, Lavor, Maculan\n");
+   // welcome message
+   fprintf(stderr,"MD-jeep 0.3.0\n");
 
    // checking input arguments
    if (argc < 2)
    {
-      bp_usage();
+      mdjeep_usage();
       return 1;
    };
 
    // default values for structures 'op' and 'info'
-   op.method = 1;  op.print = 0;  op.allone = 0;  op.symmetry = 0;  op.triangular = 0;  op.eps = 0.001;
-   info.nsols = 0;  info.maxsols = 1000;  info.pruning = 0;  info.best_sol = 0;  info.best_lde = INFTY;
+   op.version = 3;  op.print = 0;  op.format = 0;  op.allone = 0;  op.symmetry = 0;  
+   op.monitor = true;  op.r = 1.0;  op.eps = 0.001;
+   info.exact = false; info.ncalls = 0;  info.nspg = 0;  info.nspgok = 0; info.nsols = 0;
+   info.maxsols = 10000;  info.pruning = 0;  
+   info.best_sol = 0;  info.best_mde = INFTY;  info.best_lde = INFTY;
 
    // checking input options
    fidx = 1;
    while (fidx < argc - 1) 
    {
-      if (!strncmp(argv[fidx], "-m1",3))
+      if (!strncmp(argv[fidx],"-nomonitor",10))
       {
-         op.method = 1;
+         op.monitor = false;
          fidx++;
       }
-      else if (!strncmp(argv[fidx], "-m2",3))
+      else if (!strncmp(argv[fidx],"-v",2))
       {
-         op.method = 2;
-         fidx++;
+         if (fidx + 1 >= argc - 1)
+         {
+            fprintf(stderr,"mdjeep: error: -v flag requires a version number (eg. 0.1)\n");
+            return 1;
+         };
+         if (!strncmp(argv[fidx+1],"0.1",3) || !strncmp(argv[fidx+1],"0.2",3))
+         {
+            op.version = 0;
+         };
+         fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx], "-e", 2))
+      else if (!strncmp(argv[fidx],"-e",2))
       {
          if (fidx + 1 >= argc - 1) 
          {
@@ -80,36 +95,63 @@ int main(int argc, char *argv[])
          };
          fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx], "-p", 2))
+      else if (!strncmp(argv[fidx],"-r",2))
       {
-         op.print = 1;
-         fidx++;
+         if (fidx + 1 >= argc - 1)
+         {
+            fprintf(stderr,"mdjeep: error: -r flag requires a real argument\n");
+            return 1;
+         };
+         op.r = atof(argv[fidx+1]);
+         if (op.r <= 0 || op.r > 10.0)
+         {
+            fprintf(stderr,"mdjeep: error: %lf is not an acceptable resolution value\n",op.r);
+            return 1;
+         };
+         fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx], "-P", 2))
-      {
-         op.print = 2;
-         fidx++;
-      }
-      else if (!strncmp(argv[fidx], "-1", 2))
+      else if (!strncmp(argv[fidx],"-1",2))
       {
          op.allone = 1;
          fidx++;
       }
-      else if (!strncmp(argv[fidx], "-s", 2))
+      else if (!strncmp(argv[fidx],"-sym",4))
       {
-         op.symmetry = 1;
+         if (fidx + 1 >= argc - 1)
+         {
+            fprintf(stderr,"mdjeep: error: -sym flag requires an integer argument (1=first half of the tree; 2=second half)\n");
+            return 1;
+         };
+         if (atoi(argv[fidx+1]) == 1)
+         {
+            op.symmetry = 1;
+         }
+         else
+         {
+            op.symmetry = 2;
+         };
+         fidx = fidx + 2;
+      }
+      else if (!strncmp(argv[fidx],"-p",2))
+      {
+         op.print = 1;
          fidx++;
       }
-      else if (!strncmp(argv[fidx], "-t", 2))
+      else if (!strncmp(argv[fidx],"-P",2))
       {
-         op.triangular = 1;
+         op.print = 2;
          fidx++;
       }
-      else
+      else if (!strncmp(argv[fidx],"-f",2))
       {
-         fprintf(stderr,"mdjeep: warning: '%s' is not an option for mdjeep\n",argv[fidx]);
-         fidx++;
-      };
+         if (fidx + 1 >= argc - 1)
+         {
+            fprintf(stderr,"mdjeep: error: -format flag requires a char string (either xyz or pdb)\n");
+            return 1;
+         };
+         if (!strncmp(argv[fidx+1],"pdb",3) || !strncmp(argv[fidx+1],"PDB",3))  op.format = 1;
+         fidx = fidx + 2;
+      }
    };
 
    // checking if there is an input file
@@ -119,18 +161,27 @@ int main(int argc, char *argv[])
       return 1;
    };
 
-   // welcome message
-   fprintf(stderr,"mdjeep: tolerance epsilon = %g\n",op.eps);
+   // additional information is printed on the screen
    if (op.print == 1)  fprintf(stderr,"mdjeep: the best solution ");
    if (op.print == 2)  fprintf(stderr,"mdjeep: all solutions ");
-   if (op.print != 0)  fprintf(stderr,"will be printed in PDB format\n");
-   if (op.allone == 1)  fprintf(stderr,"mdjeep: only one solution is required by the user\n");
-   fprintf(stderr,"mdjeep: method used for coordinate computation: ");
-   if (op.method == 1)  fprintf(stderr,"cumulative matrix based\n");
-   if (op.method == 2)  fprintf(stderr,"change of basis based\n");
-   if (op.symmetry == 1)  fprintf(stderr,"mdjeep: only one symmetric half of the tree is explored\n");
+   if (op.print != 0)
+   {
+      fprintf(stderr,"will be printed in ");
+      if (op.format == 0)
+         fprintf(stderr,"XYZ");
+      else
+         fprintf(stderr,"PDB");
+      fprintf(stderr," format\n");
+   };
+   if (op.allone == 1)  fprintf(stderr,"mdjeep: only one solution is requested by the user\n");
+   if (op.symmetry != 0)  fprintf(stderr,"mdjeep: only one symmetric half of the tree is explored: ");
+   if (op.symmetry == 1)  fprintf(stderr,"left-side subtree\n");
+   if (op.symmetry == 2)  fprintf(stderr,"right-side subtree\n");
+   fprintf(stderr,"mdjeep: tolerance epsilon = %g, resolution = %5.2lf\n",op.eps,op.r);
+   if (op.version != 3)  fprintf(stderr,"mdjeep: the previous file format of versions 0.1 and 0.2 is used for reading input file\n");
 
    // opening input file
+   info.filename = (char*)calloc(strlen(argv[fidx]),sizeof(char));
    strcpy(info.filename,argv[fidx]);
    input = fopen(argv[fidx],"r");
    if (input == NULL)
@@ -139,115 +190,193 @@ int main(int argc, char *argv[])
       return 1;
    };
 
-   // computing the number of distances in the input file
-   m = 0;
-   while (EOF != fscanf(input,"%d %d %lf %lf %s %s %s %s\n",&i,&j,&val1,&val2,ch1,ch2,ch3,ch4))  m++;
+   // computing the number of vertices and distances in the input file
+   n = 0;  m = 0;  n0 = -1;  eof = 1;
+   while (eof != EOF)
+   {
+      if (op.version == 3)
+         eof = fscanf(input,"%d %d %d %d %lf %lf %s %s %s %s\n",&i,&j,&gi,&gj,&val1,&val2,ch[0],ch[1],ch[2],ch[3]);
+      else
+         eof = fscanf(input,"%d %d %lf %lf %s %s %s %s\n",&i,&j,&val1,&val2,ch[0],ch[1],ch[2],ch[3]);
+      if (eof != EOF)
+      {
+         m++;
+         if (i > n)  n = i;
+         if (j > n)  n = j;
+         if (n0 == -1)
+            n0 = n;
+         else if (n0 > i)
+            n0 = i;
+         else if (n0 > j)
+            n0 = j;
+      };
+   };
    rewind(input);
 
-   // checking the number of available distances
-   if (m <= 0)
+   // initial check on the input file
+   if (n <= 0 || m <= 0)
    {
       fprintf(stderr,"mdjeep: error: the input file seems to be empty\n");
       return 1;
    };
 
-   // allocation of memory for the problem
-   p = (PROBL*)calloc(m,sizeof(PROBL));
+   // memory allocation for the input instance
+   v = (VERTEX*)calloc(n-n0+1,sizeof(VERTEX));
+   for (i = 0; i < n; i++)  v[i].Id = -1;
 
-   // reading distances and computing the number of atoms
-   n = 0;
-   for (k = 0; k < m; k++)
+   // loading the instance
+   eof = 1;
+   while (eof != EOF)
    {
-      fscanf(input,"%d %d %lf %lf %s %s %s %s\n",&i,&j,&val1,&val2,p[k].iatom,p[k].jatom,p[k].iamino,p[k].jamino);
-      p[k].i = i;  p[k].j = j;
-      p[k].l = val1;  p[k].u = val2;
-      if (n < p[k].i)  n = p[k].i;
-      if (n < p[k].j)  n = p[k].j;
+      // reading next line
+      if (op.version == 3)
+      {
+         eof = fscanf(input,"%d %d %d %d %lf %lf %s %s %s %s\n",&i,&j,&gi,&gj,&val1,&val2,ch[0],ch[1],ch[2],ch[3]);
+         if (gi < 0)  gi = 0;
+         if (gj < 0)  gj = 0;
+      }
+      else
+      {
+         eof = fscanf(input,"%d %d %lf %lf %s %s %s %s\n",&i,&j,&val1,&val2,ch[0],ch[1],ch[2],ch[3]);
+         gi = 0;  gj = 0;
+      };
+      if (eof != EOF)
+      {
+         // checking the vertex integer label
+         if (i < 0 || j < 0)
+         {
+            fprintf(stderr,"mdjeep: error while reading input file, looks like there is a negative integer label\n");
+            return 1;
+         };
+
+         // loading the first vertex
+         // (and verifying that there are no two vertices with the same Id)
+         I = i - n0;
+         if (v[I].Id == -1)
+         {
+            initVertex(&v[I],i,gi,ch[0],ch[2]);
+         }
+         else
+         {
+            if (v[I].groupId != gi || strcmp(v[I].Name,ch[0]) != 0 || strcmp(v[I].Group,ch[2]) != 0)
+            {
+               fprintf(stderr,"mdjeep: error while reading input file, two different vertices with the same integer label\n");
+               fprintf(stderr,"        vertex1 (%s,%s%d) <> vertex2 (%s,%s)\n",v[I].Name,v[I].Group,v[I].groupId,ch[0],ch[2]);
+               return 1;
+            };
+         };
+
+         // loading the second vertex
+         // (and verifying that there are no two vertices with the same Id)
+         J = j - n0;
+         if (v[J].Id == -1)
+         {
+            initVertex(&v[J],j,gj,ch[1],ch[3]);
+         }
+         else
+         {
+            if (v[J].groupId != gj || strcmp(v[J].Name,ch[1]) != 0 || strcmp(v[J].Group,ch[3]) != 0)
+            {
+               fprintf(stderr,"mdjeep: error while reading input file, two different vertices with the same integer label\n");
+               fprintf(stderr,"        vertex1 (%s,%s%d) <> vertex2 (%s,%s)\n",v[J].Name,v[J].Group,v[J].groupId,ch[1],ch[3]);
+               return 1;
+            };
+         };
+
+         // loading the distance bounds
+         if (i < j)
+         {
+            I = i - n0;  J = j - n0;
+         }
+         else if (j < i)
+         {
+            I = j - n0;  J = i - n0;
+         }
+         else
+         {
+            fprintf(stderr,"mdjeep: error while reading input file, it looks like the vertex distance to itself is in the list\n");
+            return 1;
+         };
+
+         if (v[J].ref == NULL)
+         {
+            v[J].ref = initReference(I,val1,val2);
+         }
+         else
+         {
+            addDistance(v[J].ref,I,val1,val2);
+         };
+      };
    };
    fclose(input);
 
-   // checking the number of atoms in the instance
-   if (n <= 0)
-   {
-      fprintf(stderr,"mdjeep: error: the input file seems to be empty\n");
-      return 1;
-   };
-
-   // checking lower and upper bounds
-   for (k = 0; k < m; k++)
-   {
-      if (p[k].l != p[k].u)
-      {
-         fprintf(stderr,"mdjeep: error: lower and upper bounds must be equal in this version\n");
-         fprintf(stderr,"               interval distances will be considered in future versions\n");
-         return 1;
-      };
-   };
-
-   // printing problem details
-   fprintf(stderr,"mdjeep: file '%s' read: %d atoms / %d distances\n",argv[fidx],n,m);
-
-   // defining the matrix of pointers 'ind'
-   // (i,j) ---> position of distance (i,j) in p
-   ind = (int**)calloc(n+1,sizeof(int*));
-   for (i = 0; i < n+1; i++)  ind[i] = (int*)calloc(n+1,sizeof(int));
-   for (i = 0; i < n+1; i++)  for (j = 0; j < n+1; j++)  ind[i][j] = -1;  // -1 indicates that the distance is not available
-   for (k = 0; k < m; k++)  ind[p[k].i][p[k].j] = k;
-   for (k = 0; k < m; k++)  ind[p[k].j][p[k].i] = k;  // ind is a symmetric matrix
-
-   // checking the triangular inequalities (if required)
-   if (op.triangular == 1)
-   {
-      fprintf(stderr,"mdjeep: triangular inequalities check started ... ");
-      if (n > 300)  fprintf(stderr,"it may take a while ...");
-      fprintf(stderr,"\n");
-
-      for (i = 1; i <= n-2; i++)
-      {
-         for (j = i+1; j <= n-1; j++)
-         {
-            for (k = j+1; k <= n; k++)
-            {
-               ij = ind[i][j];  jk = ind[j][k];  ki = ind[k][i];
-               if (ij != -1 && jk != -1 && ki != -1)
-               {
-                  if (p[ij].l >= p[jk].l + p[ki].l || p[jk].l >= p[ij].l + p[ki].l || p[ki].l >= p[ij].l + p[jk].l)
-                  {
-                     fprintf(stderr,"mdjeep: error: the input distances do not satisfy the triangular inequalities\n");
-                     fprintf(stderr,"               triplet (%d,%d,%d): distances %g, %g, %g\n",i,j,k,p[ij].l,p[jk].l,p[ki].l);
-                     fprintf(stderr,"        stopping here ... other triangular inequalities may be not satisfied\n");
-                     return 1;
-                  };
-               };
-            };
-         };
-      };
-      fprintf(stderr,"mdjeep: all triangular inequelities are satisfied\n");
-   };
+   // printing instance details
+   fprintf(stderr,"mdjeep: file '%s' read: %d vertices / %d distances\n",argv[fidx],n-n0+1,m);
 
    // checking whether the input instance is discretizable
-   consecutivity = 1;
-   for (i = 2; i <= n; i++)
+   consecutivity = true;  nexact = 0;
+   for (i = 1; i < n - n0 + 1; i++)
    {
-      if (i == 2)
+      // consecutivity assumption
+      if (i == 1)
       {
-         if (ind[i-1][i] == -1)  consecutivity = 0;
+         r1 = getReference(v,i-1,i);
+         if (r1 == NULL)
+         {
+            consecutivity = false;
+         }
+         else if (isIntervalDistance(r1,op.eps))
+         {
+            consecutivity = false;
+         };
       }
-      else if (i == 3)
+      else if (i == 2)
       {
-         if (ind[i-2][i] == -1 || ind[i-1][i] == -1)  consecutivity = 0;
-      }
-      else if (consecutivity == 1)  
-      { 
-         if (ind[i-3][i] == -1 || ind[i-2][i] == -1 || ind[i-3][i] == -1)  consecutivity = 0;
+         r2 = getReference(v,i-2,i);  r1 = getReference(v,i-1,i);
+         if (r1 == NULL || r2 == NULL)
+         {
+              consecutivity = false;
+         }
+         else if (isIntervalDistance(r1,op.eps) || isIntervalDistance(r2,op.eps))
+         {
+              consecutivity = false;
+         };
+       }
+      else if (consecutivity)  
+      {
+         r3 = getReference(v,i-3,i);  r2 = getReference(v,i-2,i);  r1 = getReference(v,i-1,i);
+         if (r1 == NULL || r2 == NULL || r3 == NULL)
+         {
+            consecutivity = false;
+         }
+         else if (isIntervalDistance(r1,op.eps) || isIntervalDistance(r2,op.eps))
+         {
+            consecutivity = false;
+         };
       };
-      k = 0;  for (j = 1; j < i; j++)  if (ind[j][i] != -1)  k++;
 
+      // counting the number of reference distances
       enough = 3;  if (i <= 3)  enough = i - 1;
-      if (k < enough)
+      k = 0;  for (j = 0; j < i; j++)  if (getReference(v,j,i) != NULL)  k++;
+
+      // counting the number of exact reference distances
+      enoughe = 2;  if (i <= 3)  enoughe = i - 2;
+      ke = 0;
+      for (j = 0; j < i; j++)
+      {
+         ref = getReference(v,j,i);
+         if (ref != NULL)
+         {
+            if (isExactDistance(ref,op.eps))  ke++;
+         };
+      };
+      nexact = nexact + ke;
+
+      // not enough reference distances?
+      if (k < enough || ke < enoughe)
       {
          fprintf(stderr,"mdjeep: error: the input instance is not discretizable\n");
-         fprintf(stderr,"               %1d references for atom %d\n",k,i);
+         fprintf(stderr,"               %1d references for vertex %d (%d exact)\n",k,n0+i,ke);
          fprintf(stderr,"        stopping here ... other necessary distances may be not available\n");
          return 1;
       };
@@ -258,138 +387,98 @@ int main(int argc, char *argv[])
    if (!consecutivity)  fprintf(stderr,"not ");
    fprintf(stderr,"satisfied\n");
 
-   // verifying consecutivity vs selected method for coordinate computation
-   if (op.method == 1 && !consecutivity)
+   // verifying whether this is an instance with only exact distances
+   if (nexact == m)
    {
-      op.method = 2;
-      fprintf(stderr,"mdjeep: forcing 'change of basis' based method (option -m2)\n");
+      info.exact = true;
+      fprintf(stderr,"mdjeep: the loaded instance contains only exact distances\n");
    };
 
-   // allocation of memory for the solutions
-   sol = (SOLUTION*)calloc(n,sizeof(SOLUTION));
+   // message about memory allocation
+   fprintf(stderr,"mdjeep: allocating memory...");
 
-   // defining atom and amino in sol
-   for (i = 0; i < n; i++)  strcpy(sol[i].atom,"X");
-   for (i = 0; i < n; i++)  strcpy(sol[i].amino,"X");
-   for (k = 0; k < m; k++)
+   // memory allocation for the solution X
+   X = allocateMatrix(3,n-n0+1);
+
+   // setting up some extra parameters
+   S.be = 0.0;
+   S.pi = 3.14159265358979323846;
+
+   // memory allocation for the arrays in SEARCH
+   S.sym = (bool*)calloc(n-n0+1,sizeof(bool));
+   S.costheta = allocateVector(n-n0+1);  S.cosomega = allocateVector(n-n0+1);
+   S.pX = allocateMatrix(3,n-n0+1);      S.lX = allocateMatrix(3,n-n0+1);      S.uX = allocateMatrix(3,n-n0+1);
+   S.y = allocateVector(m);              S.gy = allocateVector(m);             S.sy = allocateVector(m);
+   S.yp = allocateVector(m);             S.gyp = allocateVector(m);
+   S.gX = allocateMatrix(3,n-n0+1);      S.sX = allocateMatrix(3,n-n0+1);
+   S.Xp = allocateMatrix(3,n-n0+1);      S.gXp = allocateMatrix(3,n-n0+1);
+   S.DX = allocateMatrix(3,n-n0+1);      S.YX = allocateMatrix(3,n-n0+1);      S.ZX = allocateMatrix(3,n-n0+1);
+   S.Dy = allocateVector(m);             S.Yy = allocateVector(m);             S.Zy = allocateVector(m);
+   S.memory = allocateVector(n-n0+1);
+   fprintf(stderr," done\n");
+
+   // looking for symmetries in the search tree
+   // (only when, locally, the consecutivity assumption is satisfied)
+   fprintf(stderr,"mdjeep: checking symmetries... layers: ");
+   S.sym[0] = false;  S.sym[1] = false;  S.sym[2] = false;
+   for (k = 3; k < n-n0; k++)
    {
-      i = p[k].i - 1;
-      if (!strncmp(sol[i].atom,"X",1) && !strncmp(sol[i].amino,"X",1))
+      S.sym[k] = false;
+      if (getReference(v,k-3,k) != NULL && getReference(v,k-2,k) != NULL && getReference(v,k-1,k) != NULL)
       {
-         strcpy(sol[i].atom,p[k].iatom);
-         strcpy(sol[i].amino,p[k].iamino);
-      }
-      else
-      {
-         if (strncmp(sol[i].atom,p[k].iatom,2) || strncmp(sol[i].amino,p[k].iamino,3))
+         ke = 3;
+         for (i = 0; i < k - 3; i++)
          {
-            fprintf(stderr,"mdjeep: input file: different labels (%s,%s)<>(%s,%s) for the same atom ... ",
-                    sol[i].atom,sol[i].amino,p[k].iatom,p[k].iamino);
-            fprintf(stderr,"using (%s,%s)\n",sol[i].atom,sol[i].amino);
+            for (j = k; j <= n-n0+1; j++)
+            {
+                if (getReference(v,i,j) != NULL)  ke++;
+            };
+         };
+         if (ke == 3)
+         {
+            S.sym[k] = true;
+            fprintf(stderr,"%d ",n0 + k);
          };
       };
-    
-      j = p[k].j - 1;
-      if (!strncmp(sol[j].atom,"X",1) && !strncmp(sol[j].amino,"X",1))
-      {
-         strcpy(sol[j].atom,p[k].jatom);
-         strcpy(sol[j].amino,p[k].jamino);
-      }
-      else
-      {
-         if (strncmp(sol[j].atom,p[k].jatom,2) || strncmp(sol[j].amino,p[k].jamino,3))
-         {
-            fprintf(stderr,"mdjeep: input file: different labels (%s,%s)<>(%s,%s) for the same atom ... ",
-                    sol[j].atom,sol[j].amino,p[k].jatom,p[k].jamino);
-            fprintf(stderr,"using (%s,%s)\n",sol[j].atom,sol[j].amino);
-         };
-      };
    };
+   fprintf(stderr,"\n");
 
-   // defining the list of reference atoms
-   i = 2;  sol[i-1].ref1 = 0;
-   i = 3;  sol[i-1].ref1 = 1;  sol[i-1].ref2 = 0;
-   for (i = 4; i <= n; i++)
-   {
-      j = i - 1;  while (ind[j][i] == -1)  j--;
-      sol[i-1].ref1 = j - 1;
-      j--;  while (ind[j][i] == -1)  j--;
-      sol[i-1].ref2 = j - 1;
-      j--;  while (ind[j][i] == -1)  j--;
-      sol[i-1].ref3 = j - 1;
-
-      // j should not reach 0 because of the discr. assumptions (verified above)
-      if (j <= 0)
-      {
-         fprintf(stderr,"mdjeep: data inconsistency: stopping\n");
-         return 1;
-      };
-   };
-
-   // checking whether all cosines can be pre-computed
-   fly = 0;
-
-   // computing the cosine of theta
-   // (when -2, the references don't form a clique: it will be computed later)
-   for (i = 2; i < n; i++)
-   {
-      sol[i].costheta = costheta(1+sol[i].ref2,1+sol[i].ref1,i+1,p,ind);
-      if (sol[i].costheta == -2.0)  fly = 1;
-   };
-
-   // computing the cosine of the torsion angles
-   // (when -2, the references don't form a clique: it will be computed later)
-   for (i = 3; i < n; i++)
-   {
-      sol[i].cosomega = cosomega(1+sol[i].ref3,1+sol[i].ref2,1+sol[i].ref1,i+1,p,ind);
-      if (sol[i].cosomega == -2.0)  fly = 1;
-      if (sol[i].cosomega != -2.0)  if (sol[i].cosomega < -1.0 || sol[i].cosomega > 1.0)
-      {
-         fprintf(stderr,"mdjeep: error while computing the torsion angle for the quadruplet (%d,%d,%d,%d)\n",
-                 1+sol[i].ref3,1+sol[i].ref2,1+sol[i].ref1,i+1);
-         return 1;
-      };
-   };
-
-   // message about the cosines
-   if (fly == 1)  fprintf(stderr,"mdjeep: not all cosines can be pre-computed; others will be computed on-the-fly\n");
-
-   // allocating memory for vector plde (partial LDE function value)
-   plde = (PARTIALDE*)calloc(n,sizeof(PARTIALDE));
-
-   // if option -m1, allocating memory for cumulative matrices Q 
-   if (op.method == 1)
-   {
-      Q = (double**)calloc(n,sizeof(double*));
-      for (i = 0; i < n; i++)  Q[i] = (double*)calloc(12,sizeof(double));  // 4x4 matrices
-   };
+   // removing extension from input file
+   info.output = removExtension(info.filename);
 
    // calling BP
-   t1 = clock();
-   fprintf(stderr,"mdjeep: exploring the binary tree ... ");
-   bp(1,n,m,p,ind,sol,op,plde,Q,&info);
-   fprintf(stderr,"done!\n");
+   gettimeofday(&t1,0);
+   fprintf(stderr,"mdjeep: exploring the search tree ... layer    ");
+   bp(0,n,m,v,X,S,op,&info);
+   gettimeofday(&t2,0);
+   fprintf(stderr,"\n");
  
-   // monitoring time
-   t2 = clock();
-   time = (double)(t2 - t1)/CLOCKS_PER_SEC; 
-
    // printing the results
    fprintf(stderr,"mdjeep: %d solutions found ",info.nsols);
    if (info.nsols == info.maxsols)  fprintf(stderr,"(max %d)",info.maxsols);
    fprintf(stderr,"\n");
    fprintf(stderr,"mdjeep: %d branches were pruned\n",info.pruning);
-   if (info.nsols > 0)  fprintf(stderr,"mdjeep: best LDE function (solution #%d): %g\n",info.best_sol,info.best_lde);
-   fprintf(stderr,"mdjeep: CPU time (in seconds) = %g\n",time);
+   if (!info.exact)  fprintf(stderr,"mdjeep: %d calls to spectral projected gradient (%d successful)\n",info.nspg,info.nspgok);
+   if (info.nsols > 0)  fprintf(stderr,"mdjeep: best solution #%d: LDE = %10.8lf, MDE = %10.8lf\n",info.best_sol,info.best_lde,info.best_mde);
+   timestring = splitime(t1,t2);
+   fprintf(stderr,"mdjeep: CPU time = %s\n",timestring);
 
    // freeing memory
-   if (op.method == 1)  free(Q);
-   free(plde);
-   free(sol);
-   free(ind);
-   free(p); 
+   free(timestring);
+   freeVector(S.memory);
+   freeVector(S.Dy);  freeVector(S.Yy);  freeVector(S.Zy);
+   freeMatrix(3,S.DX);  freeMatrix(3,S.YX);  freeMatrix(3,S.ZX);
+   freeMatrix(3,S.Xp);  freeMatrix(3,S.gXp);
+   freeMatrix(3,S.gX);  freeMatrix(3,S.sX);
+   freeVector(S.yp);  freeVector(S.gyp);
+   freeVector(S.y);  freeVector(S.gy);  freeVector(S.sy);
+   freeMatrix(3,S.pX);  freeMatrix(3,S.lX);  freeMatrix(3,S.uX);
+   freeVector(S.costheta);  freeVector(S.cosomega);
+   free(S.sym);
+   free(X);
+   freeVertex(n,v);
+   free(info.filename);
 
    return 0;
 };
-
 
