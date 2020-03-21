@@ -1,5 +1,5 @@
 
-*** MD-jeep, version 0.3.0 ***
+*** MD-jeep, version 0.3.1 ***
 
 The Branch & Prune algorithm for Discretizable Distance Geometry
 Copyright (C) 2019, Mucherino, Goncalves, Lavor, Liberti, Lin, Maculan
@@ -16,10 +16,10 @@ for more details.
 You should have received a copy of the GNU General Public License along with this program.
 If not, see <https://www.gnu.org/licenses/>.
 
-From the current version (0.3.0), MDjeep solves instances containing both exact and interval distance values.
-Although initially written for problems arising in the context of structural biology, MDjeep is a general solver 
-capable to solve instances from various applications. General "graph" notions are therefore employed (vertex, 
-distance edge).
+From version 0.3.0, MDjeep is able to solve instances containing both exact and interval distance values.
+Although initially written for problems arising in the context of structural biology, MDjeep is a general 
+solver capable to solve instances from various applications. General "graph" notions are therefore employed 
+(vertex, distance edge).
 
 Discretizable Distance Geometry consists of a subclass of problems for which the search space can be discretized 
 and reduced to a tree. Given a graph G=(V,E,d), with vertex set V, edge set E indicating whether the distance
@@ -50,20 +50,21 @@ Every line of the text file should contain (in this specific order):
 Important to notice:
 - the integer vertex labels need to be consecutive, but the smallest label is not supposed to be equal to 0 (neither to 1);
   the only constraint for the smallest label is that it needs to be nonnegative
-- this format is not completely compatible with previous MDjeep versions: to load instances in the previous format,
+- this format is not compatible with MDjeep versions 0.1 and 0.2: to load instances in the previous file format,
   please use the option -v (see below)
 
 MDjeep options (you can access to this list by running MDjeep without arguments):
-      -v   | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)
-      -e   | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)
-      -r   | sets the resolution parameter (needs an extra argument, double, default is 1.0)
-      -sym | only one symmetric half of the tree is explored (argument 1 or 2)
-      -1   | the algorithm stops at the first solution
-      -p   | prints the best found solution in a text file
-      -P   | prints all found solutions (in the same text file)
-           |  (when using -1, options -p and -P have the same effect)
-      -f   | specifies the output format (default is "txt", may be changed to "pdb")
--nomonitor | does no show the current layer number during the execution to improve performace
+          -v | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)
+          -e | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)
+          -r | sets the resolution parameter (needs an extra argument, double, default is 1.0)
+        -sym | only one symmetric half of the tree is explored (argument 1 or 2)
+          -1 | the algorithm stops at the first solution
+          -p | prints the best found solution in a text file
+          -P | prints all found solutions (in the same text file)
+             |  (when using -1, options -p and -P have the same effect)
+          -f | specifies the output format (default is "txt", may be changed to "pdb")
+     -consec | verifies whether the consecutivity assumption is satisfied
+  -nomonitor | does no show the current layer number during the execution to improve performace
 
 Notice that the use of option -nomonitor can actually improve MDjeep performances; moreover, it is recommended
 to use it when redirecting stdout to a file.

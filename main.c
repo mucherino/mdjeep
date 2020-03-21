@@ -9,11 +9,12 @@
                                     more robust check on input instances added
               Jul 28 2019  v.0.3.0  main adapted for BP with interval distances
                                     more efficient organization of the data structures
+              Mar 21 2020  v.0.3.1  using new functions of "vertex" to verify the instance properties
+                                    precomputing all triplets of reference vertices
 *****************************************************************************************************/
 
 #include "bp.h"
 
-int K = 3;
 double INFTY = 1.e+30;
 
 int main(int argc, char *argv[])
@@ -21,28 +22,24 @@ int main(int argc, char *argv[])
    int i,j;
    int I,J;
    int gi,gj;
-   int k,ke;
    int n,n0,m;
-   int nexact;
-   int enoughe,enough;
    int eof;
    int fidx;
+   bool clique;
    bool consecutivity;
    double **X;
    double val1,val2;
    char ch[4][20];
    char *timestring;
-   REFERENCE *ref;
    VERTEX *v;
    SEARCH S;
    OPTION op;
    INFORMATION info;
-   REFERENCE *r1,*r2,*r3;
    struct timeval t1,t2;
    FILE *input;
 
    // welcome message
-   fprintf(stderr,"MD-jeep 0.3.0\n");
+   fprintf(stderr,"MD-jeep 0.3.1\n");
 
    // checking input arguments
    if (argc < 2)
@@ -57,30 +54,31 @@ int main(int argc, char *argv[])
    info.exact = false; info.ncalls = 0;  info.nspg = 0;  info.nspgok = 0; info.nsols = 0;
    info.maxsols = 10000;  info.pruning = 0;  
    info.best_sol = 0;  info.best_mde = INFTY;  info.best_lde = INFTY;
+   consecutivity = false;
 
    // checking input options
    fidx = 1;
    while (fidx < argc - 1) 
    {
-      if (!strncmp(argv[fidx],"-nomonitor",10))
+      if (!strcmp(argv[fidx],"-nomonitor"))
       {
          op.monitor = false;
          fidx++;
       }
-      else if (!strncmp(argv[fidx],"-v",2))
+      else if (!strcmp(argv[fidx],"-v"))
       {
          if (fidx + 1 >= argc - 1)
          {
             fprintf(stderr,"mdjeep: error: -v flag requires a version number (eg. 0.1)\n");
             return 1;
          };
-         if (!strncmp(argv[fidx+1],"0.1",3) || !strncmp(argv[fidx+1],"0.2",3))
+         if (!strcmp(argv[fidx+1],"0.1") || !strcmp(argv[fidx+1],"0.2"))
          {
             op.version = 0;
          };
          fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx],"-e",2))
+      else if (!strcmp(argv[fidx],"-e"))
       {
          if (fidx + 1 >= argc - 1) 
          {
@@ -95,7 +93,7 @@ int main(int argc, char *argv[])
          };
          fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx],"-r",2))
+      else if (!strcmp(argv[fidx],"-r"))
       {
          if (fidx + 1 >= argc - 1)
          {
@@ -110,12 +108,12 @@ int main(int argc, char *argv[])
          };
          fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx],"-1",2))
+      else if (!strcmp(argv[fidx],"-1"))
       {
          op.allone = 1;
          fidx++;
       }
-      else if (!strncmp(argv[fidx],"-sym",4))
+      else if (!strcmp(argv[fidx],"-sym"))
       {
          if (fidx + 1 >= argc - 1)
          {
@@ -132,26 +130,36 @@ int main(int argc, char *argv[])
          };
          fidx = fidx + 2;
       }
-      else if (!strncmp(argv[fidx],"-p",2))
+      else if (!strcmp(argv[fidx],"-p"))
       {
          op.print = 1;
          fidx++;
       }
-      else if (!strncmp(argv[fidx],"-P",2))
+      else if (!strcmp(argv[fidx],"-P"))
       {
          op.print = 2;
          fidx++;
       }
-      else if (!strncmp(argv[fidx],"-f",2))
+      else if (!strcmp(argv[fidx],"-f"))
       {
          if (fidx + 1 >= argc - 1)
          {
-            fprintf(stderr,"mdjeep: error: -format flag requires a char string (either xyz or pdb)\n");
+            fprintf(stderr,"mdjeep: error: -f flag requires a char string (either xyz or pdb)\n");
             return 1;
          };
-         if (!strncmp(argv[fidx+1],"pdb",3) || !strncmp(argv[fidx+1],"PDB",3))  op.format = 1;
+         if (!strcmp(argv[fidx+1],"pdb") || !strcmp(argv[fidx+1],"PDB"))  op.format = 1;
          fidx = fidx + 2;
       }
+      else if (!strcmp(argv[fidx],"-consec"))
+      {
+         consecutivity = true;
+         fidx++;
+      }
+      else
+      {
+         fprintf(stderr,"mdjeep: error: unknown option (%s)\n",argv[fidx]);
+         return 1;
+      };
    };
 
    // checking if there is an input file
@@ -310,103 +318,73 @@ int main(int argc, char *argv[])
    };
    fclose(input);
 
+   // verification of instance consistency
+   if (m != totalNumberOfDistances(n-n0+1,v))
+   {
+      fprintf(stderr,"mdjeep: error while reading the instance; distance set not correctly loaded\n");
+      return 1;
+   };
+
    // printing instance details
    fprintf(stderr,"mdjeep: file '%s' read: %d vertices / %d distances\n",argv[fidx],n-n0+1,m);
 
-   // checking whether the input instance is discretizable
-   consecutivity = true;  nexact = 0;
-   for (i = 1; i < n - n0 + 1; i++)
+   // checking whether the first three instance vertices form a clique
+   clique = initialClique(n-n0+1,v,op.eps);
+   if (!clique)
    {
-      // consecutivity assumption
-      if (i == 1)
-      {
-         r1 = getReference(v,i-1,i);
-         if (r1 == NULL)
-         {
-            consecutivity = false;
-         }
-         else if (isIntervalDistance(r1,op.eps))
-         {
-            consecutivity = false;
-         };
-      }
-      else if (i == 2)
-      {
-         r2 = getReference(v,i-2,i);  r1 = getReference(v,i-1,i);
-         if (r1 == NULL || r2 == NULL)
-         {
-              consecutivity = false;
-         }
-         else if (isIntervalDistance(r1,op.eps) || isIntervalDistance(r2,op.eps))
-         {
-              consecutivity = false;
-         };
-       }
-      else if (consecutivity)  
-      {
-         r3 = getReference(v,i-3,i);  r2 = getReference(v,i-2,i);  r1 = getReference(v,i-1,i);
-         if (r1 == NULL || r2 == NULL || r3 == NULL)
-         {
-            consecutivity = false;
-         }
-         else if (isIntervalDistance(r1,op.eps) || isIntervalDistance(r2,op.eps))
-         {
-            consecutivity = false;
-         };
-      };
+      fprintf(stderr,"mdjeep: error: the first three vertices of the input instance do not form a clique\n");
+      fprintf(stderr,"               the instance cannot be discretized\n");
+      return 1;
+   };
 
-      // counting the number of reference distances
-      enough = 3;  if (i <= 3)  enough = i - 1;
-      k = 0;  for (j = 0; j < i; j++)  if (getReference(v,j,i) != NULL)  k++;
-
-      // counting the number of exact reference distances
-      enoughe = 2;  if (i <= 3)  enoughe = i - 2;
-      ke = 0;
-      for (j = 0; j < i; j++)
-      {
-         ref = getReference(v,j,i);
-         if (ref != NULL)
-         {
-            if (isExactDistance(ref,op.eps))  ke++;
-         };
-      };
-      nexact = nexact + ke;
-
-      // not enough reference distances?
-      if (k < enough || ke < enoughe)
-      {
-         fprintf(stderr,"mdjeep: error: the input instance is not discretizable\n");
-         fprintf(stderr,"               %1d references for vertex %d (%d exact)\n",k,n0+i,ke);
-         fprintf(stderr,"        stopping here ... other necessary distances may be not available\n");
-         return 1;
-      };
+   // checking whether the input instance is discretizable
+   i = isDDGP(n-n0+1,v,op.eps,clique);
+   if (i != 0)
+   {
+      fprintf(stderr,"mdjeep: error: the input instance is not discretizable\n");
+      fprintf(stderr,"               not enough references for vertex %d (at least 3, at least 2 exact)\n",n0+i);
+      fprintf(stderr,"               stopping here... other necessary distances may be unavailable\n");
+      return 1;
    };
 
    // the input instance is discretizable: message
-   fprintf(stderr,"mdjeep: the input instance is discretizable; the consecutivity assumption is ");
-   if (!consecutivity)  fprintf(stderr,"not ");
-   fprintf(stderr,"satisfied\n");
+   fprintf(stderr,"mdjeep: the input instance is discretizable\n");
 
-   // verifying whether this is an instance with only exact distances
-   if (nexact == m)
+   // verifying whether all distances are exact
+   if (m == totalNumberOfExactDistances(n-n0+1,v,op.eps))
    {
       info.exact = true;
-      fprintf(stderr,"mdjeep: the loaded instance contains only exact distances\n");
+      op.r = 0.0;
+      fprintf(stderr,"mdjeep: the instance contains only exact distances (the resolution parameter is disabled)\n");
+   };
+
+   // checking the consecutivity assumption (optional)
+   if (info.exact || consecutivity)
+   {
+      consecutivity = isDMDGP(n-n0+1,v,op.eps,true);
+      fprintf(stderr,"mdjeep: the instance ");
+      if (consecutivity)
+         fprintf(stderr,"satisfies ");
+      else
+         fprintf(stderr,"does not satisfy ");
+      fprintf(stderr,"the consecutivity assumption\n");
    };
 
    // message about memory allocation
-   fprintf(stderr,"mdjeep: allocating memory...");
+   fprintf(stderr,"mdjeep: allocating memory ...");
 
    // memory allocation for the solution X
    X = allocateMatrix(3,n-n0+1);
 
    // setting up some extra parameters
-   S.be = 0.0;
+   S.be = 0.05;  // bound expansion factor
    S.pi = 3.14159265358979323846;
 
    // memory allocation for the arrays in SEARCH
    S.sym = (bool*)calloc(n-n0+1,sizeof(bool));
-   S.costheta = allocateVector(n-n0+1);  S.cosomega = allocateVector(n-n0+1);
+   S.refs = (triplet*)calloc(n-n0+1,sizeof(triplet));
+   // S.costheta = allocateVector(n-n0+1);  S.cosomega = allocateVector(n-n0+1);  // not used in versions 0.3.0 and 0.3.1
+   S.e = (int*)calloc(n-n0+1,sizeof(int));
    S.pX = allocateMatrix(3,n-n0+1);      S.lX = allocateMatrix(3,n-n0+1);      S.uX = allocateMatrix(3,n-n0+1);
    S.y = allocateVector(m);              S.gy = allocateVector(m);             S.sy = allocateVector(m);
    S.yp = allocateVector(m);             S.gyp = allocateVector(m);
@@ -417,39 +395,50 @@ int main(int argc, char *argv[])
    S.memory = allocateVector(n-n0+1);
    fprintf(stderr," done\n");
 
+   // precomputing all reference vertices
+   for (i = 3; i < n-n0+1; i++)  S.refs[i] = findReferences(n,v,i,op.eps,info.exact);
+
    // looking for symmetries in the search tree
-   // (only when, locally, the consecutivity assumption is satisfied)
-   fprintf(stderr,"mdjeep: checking symmetries... layers: ");
-   S.sym[0] = false;  S.sym[1] = false;  S.sym[2] = false;
-   for (k = 3; k < n-n0; k++)
-   {
-      S.sym[k] = false;
-      if (getReference(v,k-3,k) != NULL && getReference(v,k-2,k) != NULL && getReference(v,k-1,k) != NULL)
-      {
-         ke = 3;
-         for (i = 0; i < k - 3; i++)
-         {
-            for (j = k; j <= n-n0+1; j++)
-            {
-                if (getReference(v,i,j) != NULL)  ke++;
-            };
-         };
-         if (ke == 3)
-         {
-            S.sym[k] = true;
-            fprintf(stderr,"%d ",n0 + k);
-         };
-      };
-   };
+   fprintf(stderr,"mdjeep: checking symmetries ... ");
+   findSymmetries(n-n0+1,v,S.sym);
+   fprintf(stderr,"layers:");
+   for (i = 0; i < n-n0+1; i++)  if (S.sym[i])  fprintf(stderr," %d",n0+i);
    fprintf(stderr,"\n");
+
+   // counting the maximum number of digits necessary to represent the vertex ranks
+   // (necessary for monitor)
+   info.ndigits = numberOfDigits(n);
 
    // removing extension from input file
    info.output = removExtension(info.filename);
 
    // calling BP
+   fprintf(stderr,"mdjeep: exploring the search tree ... ");
+   if (op.monitor)
+   {
+      fprintf(stderr,"layer ");
+      for (i = 0; i < info.ndigits; i++)  fprintf(stderr," ");
+   };
    gettimeofday(&t1,0);
-   fprintf(stderr,"mdjeep: exploring the search tree ... layer    ");
-   bp(0,n,m,v,X,S,op,&info);
+   if (info.exact)
+   {
+      bp_exact(0,n,m,v,X,S,op,&info);
+      if (info.nsols == 0)
+      {
+         fprintf(stderr,"\nmdjeep: first attempt failed ... trying again with optimized reference vertices ... ");
+         for (i = 3; i < n-n0+1; i++)  S.refs[i] = findReferences(n,v,i,op.eps,false);
+         if (op.monitor)
+         {
+            fprintf(stderr,"layer ");
+            for (i = 0; i < info.ndigits; i++)  fprintf(stderr," ");
+         };
+         bp_exact(0,n,m,v,X,S,op,&info);
+      };
+   }
+   else
+   {
+      bp(0,n,m,v,X,S,op,&info);
+   };
    gettimeofday(&t2,0);
    fprintf(stderr,"\n");
  
@@ -473,7 +462,9 @@ int main(int argc, char *argv[])
    freeVector(S.yp);  freeVector(S.gyp);
    freeVector(S.y);  freeVector(S.gy);  freeVector(S.sy);
    freeMatrix(3,S.pX);  freeMatrix(3,S.lX);  freeMatrix(3,S.uX);
-   freeVector(S.costheta);  freeVector(S.cosomega);
+   free(S.e);
+   // freeVector(S.costheta);  freeVector(S.cosomega);
+   free(S.refs);
    free(S.sym);
    free(X);
    freeVertex(n,v);

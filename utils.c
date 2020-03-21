@@ -1,4 +1,4 @@
-/*************************************************************************************************
+/****************************************************************************************************
   Name:       MD-jeep
               the Branch & Prune algorithm for discretizable Distance Geometry - utilities
   Author:     A. Mucherino, L. Liberti, D.S. Goncalves, C. Lavor, N. Maculan
@@ -8,10 +8,14 @@
               May 08 2014  v.0.2    functions costheta and cosomega updated
               Jul 28 2019  v.0.3.0  functions for computing cosines (omega,theta) from coords added
                                     functions for managing omega lists added
-                                    functions "projection" and "removExtension" added
-**************************************************************************************************/
+                                    functions projection and removExtension added
+              Mar 21 2020  v.0.3.1  functions numberOfOmegaIntervals, expandBounds, numberOfDigits, 
+                                    minimun and maximum added
+*****************************************************************************************************/
 
 #include "bp.h"
+
+extern double INFTY;
 
 /* functions to manage omega angle lists */
 
@@ -114,6 +118,7 @@ Omega* omegaIntervalNextAlongDirection(Omega *current,bool asNext)
 };
 
 // this function "attaches" a new omega interval to a given omega interval
+// -> it is supposed that the next omega interval is NULL (otherwise memory for next is deallocated)
 void attachNewOmegaInterval(Omega *current,double l,double u)
 {
    if (current != NULL)
@@ -178,9 +183,26 @@ void splitOmegaIntervals(Omega *current,double radius,double resolution)
    };
 };
 
+// this function counts the number of omega interval from a given interval
+int numberOfOmegaIntervals(Omega *current)
+{
+   int count = 0;
+   if (current != NULL)
+   {
+      count = 1;
+      while (current->next != NULL)
+      {
+         count++;
+         current = current->next;
+      };
+   };
+   return count;
+};
+
 // this function prints an interval list L (stdout)
 void printOmegaList(omegaList L)
 {
+   int i;
    Omega *current = L.first;
    if (current == NULL)
    {
@@ -188,9 +210,11 @@ void printOmegaList(omegaList L)
    }
    else
    {
+      i = 0;
       while (current != NULL)
       {
-         printf("[%10.7lf,%10.7lf]\n",current->l,current->u);
+         i++;
+         printf("%3d) [%10.7lf,%10.7lf]\n",i,current->l,current->u);
          current = current->next;
       };
    };
@@ -297,10 +321,57 @@ double cosomega(int i3,int i2,int i1,int i,VERTEX *v,double **X,double range)
 
 /* other functions */
 
+// expanding the bounds defining the 3D boxes (to help SPG to converge)
+void expandBounds(int n,int *e,double **X,double **lX,double **uX,double factor)
+{
+   int i,j,k;
+   int min,max;
+
+   // verifying whether there are new not-yet expanded boxes
+   min = e[0];  max = min;
+   for (i = 1; i < n; i++)
+   {
+      if (min > e[i])  min = e[i];
+      if (max < e[i])  max = e[i];
+   };
+
+   if (min != max)
+   {
+      // reversing the previous bound-expansion effect
+      for (i = 0; i < n; i++)
+      {
+         for (k = 0; k < 3; k++)
+         {
+            j = e[i];
+            while (j > 0 && lX[k][i] + (j+1)*factor < X[k][i] && X[k][i] < uX[k][i] - (j+1)*factor)
+            {
+               lX[k][i] = lX[k][i] + j*factor;
+               uX[k][i] = uX[k][i] - j*factor;
+               j--;
+            };
+         };
+         e[i] = 0.0;
+      };
+   }
+   else
+   {
+      // expanding the bounds
+      for (i = 0; i < n; i++)
+      {
+         e[i]++;
+         for (k = 0; k < 3; k++)
+         {
+            lX[k][i] = lX[k][i] - e[i]*factor;
+            uX[k][i] = uX[k][i] + e[i]*factor;
+         };
+      };
+   };
+};
+
 // projection of x over the real interval [a,b]: returns the projected x
 // (with the use of the tolerance eps)
 double projection(double x,double a,double b,double eps)
-{  
+{
    if (a <= x && x <= b)
    {  
       return x;
@@ -313,6 +384,18 @@ double projection(double x,double a,double b,double eps)
    {  
       return b + eps;
    };
+};
+
+// counting the number of digits forming an integer number
+int numberOfDigits(int integer)
+{
+   int nd = 0;
+   while (integer > 0)
+   {
+      integer = integer/10;
+      nd++;
+   };
+   return nd;
 };
 
 // removing the extension from the input file (if such an extension is present)
@@ -333,6 +416,24 @@ char* removExtension(char *filename)
    return output;
 };
 
+// finding the minimum value among three double values
+double minimum(double a,double b,double c)
+{
+   double min = a;
+   if (min > b)  min = b;
+   if (min > c)  min = c;
+   return min;
+};
+
+// finding the maximum value among three double values
+double maximum(double a,double b,double c)
+{
+   double max = a;
+   if (max < b)  max = b;
+   if (max < c)  max = c;
+   return max;
+};
+
 // BP usage - function invoked when too few arguments are passed to MDjeep
 // -----------------------------------------------------------------------
 
@@ -341,15 +442,16 @@ void mdjeep_usage(void)
    fprintf(stderr,"mdjeep: too few arguments\n");
    fprintf(stderr,"        syntax: ./mdjeep [options] instance.nmr\n");
    fprintf(stderr," Options:\n");
-   fprintf(stderr,"        -v   | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)\n");
-   fprintf(stderr,"        -e   | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)\n");
-   fprintf(stderr,"        -r   | sets the resolution parameter (needs an extra argument, double, default is 1.0)\n");
+   fprintf(stderr,"          -v | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)\n");
+   fprintf(stderr,"          -e | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)\n");
+   fprintf(stderr,"          -r | sets the resolution parameter (needs an extra argument, double, default is 1.0)\n");
    fprintf(stderr,"        -sym | only one symmetric half of the tree is explored (argument 1 or 2)\n");
-   fprintf(stderr,"        -1   | the algorithm stops at the first solution\n");
-   fprintf(stderr,"        -p   | prints the best found solution in a text file\n");
-   fprintf(stderr,"        -P   | prints all found solutions (in the same text file)\n");
+   fprintf(stderr,"          -1 | the algorithm stops at the first solution\n");
+   fprintf(stderr,"          -p | prints the best found solution in a text file\n");
+   fprintf(stderr,"          -P | prints all found solutions (in the same text file)\n");
    fprintf(stderr,"             |  (when using -1, options -p and -P have the same effect)\n");
-   fprintf(stderr,"        -f   | specifies the output format (default is \"txt\", may be changed to \"pdb\")\n");
+   fprintf(stderr,"          -f | specifies the output format (default is \"txt\", may be changed to \"pdb\")\n");
+   fprintf(stderr,"     -consec | verifies whether the consecutivity assumption is satisfied\n");
    fprintf(stderr,"  -nomonitor | does no show the current layer number during the execution to improve performace\n");
 };
 

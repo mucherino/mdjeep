@@ -1,16 +1,17 @@
-/***************************************************************************************************
+/******************************************************************************************************
   Name:       MD-jeep
               the Branch & Prune algorithm for discretizable Distance Geometry - SPG
   Author:     A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
   Sources:    ansi C
   License:    GNU General Public License v.3
   History:    Jul 28 2019  v.0.3.0  introduced in this version
-****************************************************************************************************/
+              Mar 21 2020  v.0.3.1  the variable S.be is not used anymore to enlarge the bounds
+*******************************************************************************************************/
 
 #include "bp.h"
 
 // SPG parameters: the user cannot modify these parameters in version 0.3.0
-extern int K;  // fixed to 3 in this version of MDjeep
+int K = 3;  // fixed to 3 in this version of MDjeep
 double eta = 0.99;
 double gam = 1.e-4;
 double epsobj = 1.e-7;
@@ -118,7 +119,7 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
       {
          for (k = 0; k < K; k++)
          {
-            S.sX[k][i] = projection(S.sX[k][i],S.lX[k][i]-S.be,S.uX[k][i]+S.be,gam);
+            S.sX[k][i] = projection(S.sX[k][i],S.lX[k][i],S.uX[k][i],gam);
          };
       };
 

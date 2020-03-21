@@ -7,6 +7,7 @@
 # History:    May 01 2010  v.0.1    first release
 #             May 10 2014  v.0.2    second release (no files added)
 #             Jul 28 2019  v.0.3.0  third release (added files vertex.c, distance.c, objfun.c, spg.c, splitime.c)
+#             Mar 21 2020  v.0.3.1  no new files added
 #################################################################################################################
 
 

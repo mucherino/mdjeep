@@ -78,7 +78,7 @@ void printpdb(int n,VERTEX *v,double **X,char *filename,int s)
    // writing header file (only if new file or overwriting)
    if (s < 2)
    {
-      fprintf(output,"HEADER      MD-jeep version 0.3.0\n");
+      fprintf(output,"HEADER      MD-jeep version 0.3.1\n");
       fprintf(output,"REMARK   1 \n");
       fprintf(output,"REMARK   1  Branch and Prune for Discretizable Distance Geometry\n");
       fprintf(output,"REMARK   1 \n");

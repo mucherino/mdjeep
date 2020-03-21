@@ -1,0 +1,76 @@
+
+MDjeep version 0.3.*
+
+Changes
+-------
+
+Version 0.3.1 vs 0.3.0
+
+1. Two bugs were detected in the version 0.3.0 (see bug report).
+   The method implemented for the computation of the boxes was
+   giving wrong results in some particular situations: 
+   MDjeep 0.3.1 implements now a more realible method for
+   the computation the bound boxes.
+   The second bug was related to the bound expansion feature
+   of SPG, where the generation of solutions not strictly
+   contained in the box bounds was possible. This mechanism
+   is reimplemented in MDjeep 0.3.1 to avoid this issue.
+
+2. The verification of the discretization assumptions is now 
+   performed by using external functions (functions of C file 
+   "vertex"), the functions are initialClique, isDDGP and 
+   isDMDGP. For MDjeep 0.3.1 to solve the input instance, it 
+   is necessary that the function isDDGP gives a positive answer; 
+   if the result of isDMDGP is negative, MDjeep can still solve 
+   the instance (this verification is in fact now optional, and 
+   performed automatically only when the instance is composed 
+   only by exact distances).
+
+3. The verification of the existence of the symmetric vertices 
+   is also now performed by an external function of the "vertex"
+   C file (function findSymmetries). The new implemented method 
+   has a lower complexity wrt the method implemented directly in 
+   the main of version 0.3.0 (old complexity: |V|^3, new worst-case 
+   complexity: |V|*|E|, where V is the instance vertex set, and E 
+   is its edge set).
+
+4. The computation of the reference vertices to be used in the BP
+   algorithm is performed only once, and the triplets of reference 
+   vertices are kept in memory for the several recursive calls 
+   to BP. When more than one reference triplet can be selected, 
+   the "optimal" one is searched (basically, when all distances 
+   are exact, we avoid to select triplets leading to the definition 
+   of angles close to a multiple of pi; whereas if one distance is 
+   an interval, we simply take the triplet with two exact distances
+   and the interval with the smallest range).
+
+5. The resolution parameter is now disabled when stepping from 
+   a symmetric side to the other of the search tree (when the 
+   option "-sym" is not used). In this way, solutions obtained 
+   from both symmetric parts of the search tree will be contained
+   in the solution set.
+
+6. A new pruning device, named BoxDDF, is integrated in MDjeep 0.3.1
+   in order to compute the distances between pairs of boxes
+   "envelopping" pairs of vertices with known distance: if the 
+   available distance cannot be satisfied by the two boxes, then 
+   it is not necessary to call SPG in the attempt to refine the 
+   current solution (because the infeasibility cannot be removed 
+   as far as the vertex positions are contained in their 
+   corresponding boxes). This improvement was suggested by
+   Douglas S. Goncalves.
+
+7. In order to avoid lowering the performaces (wrt the performances
+   that MDjeep 0.2 is able to give) when dealing with instances
+   consisting of only exact distances, MDjeep 0.3.1 follows two
+   separated paths for the solution of instances containing or 
+   not interval distances. To this aim, the function bp_exact was 
+   included, which is strongly inspired by the version of bp given 
+   in MDjeep 0.2. Among the other differences in dealing with 
+   instances containing interval distances or not, we point out 
+   that  the resolution parameter is now disabled when the instance 
+   at hand only contains exact distances.
+
+8. New auxiliary functions were included in the C files "distance"
+   and "utils".
+

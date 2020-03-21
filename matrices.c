@@ -7,6 +7,7 @@
   History:    May 01 2010  v.0.1    first release
               May 08 2014  v.0.2    functions costheta and cosomega updated
               Jun 28 2019  v.0.3.0  adding functions for vector and matrix manipulation
+              Mar 21 2020  v.0.3.1  adding functions areSameVector and areSameMatrix (for tests)
 **************************************************************************************************/ 
 
 #include "bp.h"
@@ -38,6 +39,19 @@ double normVector(size_t n,double *v)
    double sqnorm = 0.0;
    for (i = 0; i < n; i++)  sqnorm = sqnorm + v[i]*v[i];
    return sqrt(sqnorm);
+};
+
+// this function verifies whether two vectors contain the same sequence of values
+bool areSameVector(size_t n,double *v1,double *v2)
+{
+   int i = 0;
+   bool same = true;
+   while (same && (i < n))
+   {
+      if (v1[i] != v2[i])  same = false;
+      i++;
+   }
+   return same;
 };
 
 // this function computes the cross product between two 3d vectors
@@ -89,7 +103,7 @@ void copyCenterMatrix(size_t n,size_t m,double **source,double **dest)
    {
       sum = 0.0;
       for (j = 0; j < m; j++)  sum = sum + source[i][j];
-      for (j = 0; j < m; j++)  dest[i][j] = source[i][j] -sum/m;
+      for (j = 0; j < m; j++)  dest[i][j] = source[i][j] - sum/m;
    };
 };
 
@@ -98,6 +112,26 @@ void differenceMatrix(size_t n,size_t m,double **A,double **B,double **C)
 {
    int i,j;
    for (i = 0; i < n; i++)  for (j = 0; j < m; j++)  C[i][j] = A[i][j] - B[i][j];
+};
+
+// this function verifies whether two matrices are identical
+bool areSameMatrix(size_t n,size_t m,double **A,double **B)
+{
+   int i,j;
+   bool same = true;
+
+   i = 0;  j = 0;
+   while (same && (i < n))
+   {
+      while (same & (j < m))
+      {
+         if (A[i][j] != B[i][j])  same = false;
+         j++;
+      };
+      i++;
+   };
+
+   return same;
 };
 
 // this function computes the U matrix (stored column by column)

@@ -1,6 +1,27 @@
 
-MDjeep version 0.3.*
+MDjeep versions 0.3.*
 Bug report
+----------
+
+MDjeep 0.3.1
 
 No bugs found up to now
+
+----------
+
+MDjeep 0.3.0
+
+The method implemented for the computation of the boxes was
+giving wrong results in some particular cases. The bug was 
+probably not detected during the development of MDjeep 0.3.0
+because SPG had just been included to "correct" a potential error
+propagation. 
+
+The use of the bound expansion feature in SPG was allowing
+the generation of solutions that were not included in the
+original set of boxes. 
+
+Both bugs have been fixed in MDjeep 0.3.1.
+
+----------
 

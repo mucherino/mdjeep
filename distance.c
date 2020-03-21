@@ -6,6 +6,7 @@
   License:    GNU General Public License v.3
   History:    Jul 28 2019  v.0.3.0  introduced in this version for working with the newly introduced 
                                     data structures
+              Mar 21 2020  v.0.3.1  adding numberOfExactDistances and rangeOfDistance
 ****************************************************************************************************/
 
 #include "bp.h"
@@ -46,7 +47,8 @@ REFERENCE* initReference(int otherId,double lb,double ub)
 };
 
 // this function adds a new distance to an already-initialized REFERENCE structure
-void addDistance(REFERENCE *ref,int otherId,double lb,double ub)
+// it returns the created REFERENCE
+REFERENCE* addDistance(REFERENCE *ref,int otherId,double lb,double ub)
 {
    while (ref->next != NULL)  ref = ref->next;
    ref->next = (REFERENCE*)calloc(1,sizeof(REFERENCE));
@@ -54,6 +56,7 @@ void addDistance(REFERENCE *ref,int otherId,double lb,double ub)
    ref->next->lb = lb;
    ref->next->ub = ub;
    ref->next->next = NULL;
+   return ref->next;
 };
 
 // given a *valid* REFERENCE, this function outputs the index of the other vertex
@@ -89,6 +92,33 @@ int numberOfDistances(REFERENCE *ref)
       };
    };
    return count;
+};
+
+// given a REFERENCE, this function outputs the total number of exact referenced distances (including the current one)
+// the double value "eps" is the tolerance to distinguish between exact and interval distances
+int numberOfExactDistances(REFERENCE *ref,double eps)
+{
+   int count = 0;
+   if (ref != NULL)
+   {
+      if (isExactDistance(ref,eps))  count++;
+      while (ref->next != NULL)
+      {
+         if (isExactDistance(ref->next,eps))  count++;
+         ref = ref->next;
+      };
+   };
+   return count;
+};
+
+// given a REFERENCE, this function outputs the range of the corresponding distance
+// -> it corresponds to 0 if this is a exact reference
+// -> the function outputs 0 also when the REFERENCE is NULL
+double rangeOfDistance(REFERENCE *ref)
+{
+   if (ref != NULL)
+      return upperBound(ref) - lowerBound(ref);
+   return 0;
 };
 
 // this function verifies whether the given reference corresponds to an "exact" distance
@@ -154,7 +184,7 @@ void printDistances(REFERENCE *ref)
 };
 
 // given a REFERENCE, this function frees its memory
-void freeReference(REFERENCE *ref)
+REFERENCE* freeReference(REFERENCE *ref)
 {
    while (ref != NULL)
    {
@@ -170,5 +200,6 @@ void freeReference(REFERENCE *ref)
          ref->next = NULL;
       };
    };
+   return NULL;
 };
 
