@@ -10,14 +10,20 @@
                                     and resolution parameter
               Mar 21 2020  v.0.3.1  improving method for the computation of the box bounds
                                     adding bp_exact function, for instances consisting of exact distances
+              May 19 2020  v.0.3.2  new bound expansion technique in bp version for interval distances
+                                    bp_exact may choose the "best" triplet of discretization vertices
+                                    a time limit for both bp implementations can now be set up
 *********************************************************************************************************/
 
 #include "bp.h"
 
 extern double INFTY;
 bool keep_going = true;
+bool newsol = false;
+bool backtracking = false;
 bool check = false;
 bool PRINTED = false;
+struct timeval startime;
 
 // signal catcher
 void intHandler(int a)
@@ -27,11 +33,17 @@ void intHandler(int a)
 };
 
 // branch-and-prune (general version)
-void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
+// -> i, current vertex of be realized
+// -> n, total number of vertices forming the instance
+// -> v, array of vertices
+// -> X, current matrix of coordinates
+// -> S, SEARCH structure
+// -> op, OPTION structure
+// -> info, INFORMATION structure
+void bp(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
 {
    int j,k;
-   int nb,it;
-   int pru;
+   int it,nb;
    int ldigits;
    double A,B,U[9];
    double cdist;
@@ -43,9 +55,11 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
    double omega;
    double dist,alpha,opt;
    double obj,lde,mde;
+   double pperr,perr;
    Omega *current;
    omegaList omegaL;
    REFERENCE *r1,*r2,*r3;
+   struct timeval currentime;
 
    // signal handler
    signal(SIGINT,intHandler);
@@ -56,30 +70,26 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
       // initializing the BP call counter
       info->ncalls = 0;
 
-      // The first three vertices can be positioned by using the initial clique
-
       // vertex 0
-         X[0][0] = 0.0;     X[1][0] = 0.0;     X[2][0] = 0.0;
-      S.lX[0][0] = 0.0;  S.lX[1][0] = 0.0;  S.lX[2][0] = 0.0;
-      S.uX[0][0] = 0.0;  S.uX[1][0] = 0.0;  S.uX[2][0] = 0.0;
-      S.e[0] = 0;
+      X[0][0] =  0.0;  X[1][0] = 0.0;  X[2][0] = 0.0;
+      createBox(0,X,op.eps,S.lX,S.uX);
 
       // vertex 1
       r1 = getReference(v,0,1);
-         X[0][1] = -lowerBound(r1);  X[1][1] = 0.0;     X[2][1] = 0.0;
-      S.lX[0][1] =  X[0][1];      S.lX[1][1] = 0.0;  S.lX[2][1] = 0.0;
-      S.uX[0][1] =  X[0][1];      S.uX[1][1] = 0.0;  S.uX[2][1] = 0.0;
-      S.e[1] = 0;
+      X[0][1] = -lowerBound(r1);  X[1][1] = 0.0;  X[2][1] = 0.0;
+      createBox(1,X,op.eps,S.lX,S.uX);
 
       // vertex 2
       r2 = getReference(v,1,2);
       cTheta = costheta(0,1,2,v,X);  sTheta = sqrt(1.0 - cTheta*cTheta);
-         X[0][2] = -lowerBound(r1) + lowerBound(r2)*cTheta;  X[1][2] = lowerBound(r2)*sTheta;  X[2][2] = 0.0; 
-      S.lX[0][2] = X[0][2];  S.lX[1][2] = X[1][2];  S.lX[2][2] = 0.0;
-      S.uX[0][2] = X[0][2];  S.uX[1][2] = X[1][2];  S.uX[2][2] = 0.0;
-      S.e[2] = 0;
+      X[0][2] = -lowerBound(r1) + lowerBound(r2)*cTheta;  X[1][2] = lowerBound(r2)*sTheta;  X[2][2] = 0.0; 
+      createBox(2,X,op.eps,S.lX,S.uX);
 
-      i = i + 3;  // branching starts at vertex i+3
+      // we start to count the time for BP from this point
+      gettimeofday(&startime,0);
+
+      // branching starts at vertex i+3
+      i = i + 3;
    };
 
    // updating BP call counter
@@ -90,17 +100,18 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
    r3 = S.refs[i].r3;  r2 = S.refs[i].r2;  r1 = S.refs[i].r1;
    cdist = lowerBound(r1);
    
-   // theta angles ("bond" angles)
-   cTheta = costheta(r2->otherId,r1->otherId,i,v,X);
+   // theta angle ("bond" angles)
+   cTheta = costheta(otherVertexId(r2),otherVertexId(r1),i,v,X);
    sTheta = sqrt(1.0 - cTheta*cTheta);
 
    // generating U matrix (only once)
-   UMatrix(r3->otherId,r2->otherId,r1->otherId,i,X,U);
+   UMatrix(otherVertexId(r3),otherVertexId(r2),otherVertexId(r1),i,X,U);
 
-   // omega angles (torsion angles)
+   // omega angle (torsion angles)
    nb = 2;
-   cosOmega00 = cosomega(r3->otherId,r2->otherId,r1->otherId,i,v,X,0.0);
-   cosOmega01 = cosomega(r3->otherId,r2->otherId,r1->otherId,i,v,X,1.0);
+   cosOmega00 = cosomega(otherVertexId(r3),otherVertexId(r2),otherVertexId(r1),i,v,X,0.0,op.eps);
+   cosOmega01 = cosomega(otherVertexId(r3),otherVertexId(r2),otherVertexId(r1),i,v,X,1.0,op.eps);
+   if (cosOmega00 == -2.0 || cosOmega01 == -2.0)  return;  // infeasibility already detected
    sinOmega00 = sqrt(1.0 - cosOmega00*cosOmega00);
    sinOmega01 = sqrt(1.0 - cosOmega01*cosOmega01);
    lomega0 = atan2(+sinOmega00,cosOmega00);  uomega0 = atan2(+sinOmega01,cosOmega01);
@@ -170,16 +181,13 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
       lomega0 = omegaIntervalLowerBound(current);
       uomega0 = omegaIntervalUpperBound(current);
       omega = 0.5*(lomega0 + uomega0);
-      genCoordinates(r1->otherId,i,X,U,cdist,cTheta,sTheta,cos(omega),sin(omega));
+      genCoordinates(otherVertexId(r1),i,X,U,cdist,cTheta,sTheta,cos(omega),sin(omega));
 
       // generation of the box inscribing the arc
-      S.e[i] = 0;
       if (isExactDistance(r3,op.eps))
       {
-         // the box has the size of the tolerance on the three dimensions
-         S.lX[0][i] = X[0][i];  S.uX[0][i] = X[0][i];
-         S.lX[1][i] = X[1][i];  S.uX[1][i] = X[1][i];
-         S.lX[2][i] = X[2][i];  S.uX[2][i] = X[2][i];
+         // the box has the size equal to the tolerance over the three dimensions
+         createBox(i,X,op.eps,S.lX,S.uX);
       }
       else
       {
@@ -198,8 +206,8 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
             alpha = maximum(alpha,lomega1,uomega1);
             opt = A*cos(opt) + B*sin(opt);
             opt = minimum(opt,lomega1,uomega1);
-            S.lX[0][i] = S.lX[0][r1->otherId] - U[0]*cdist*cTheta + opt - op.eps;
-            S.uX[0][i] = S.uX[0][r1->otherId] - U[0]*cdist*cTheta + alpha + op.eps;
+            S.lX[0][i] = S.lX[0][otherVertexId(r1)] - U[0]*cdist*cTheta + opt - op.eps;
+            S.uX[0][i] = S.uX[0][otherVertexId(r1)] - U[0]*cdist*cTheta + alpha + op.eps;
          }
          else
          {
@@ -221,8 +229,8 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
             alpha = maximum(alpha,lomega1,uomega1);
             opt = A*cos(opt) + B*sin(opt);
             opt = minimum(opt,lomega1,uomega1);
-            S.lX[1][i] = S.lX[1][r1->otherId] - U[1]*cdist*cTheta + opt - op.eps;
-            S.uX[1][i] = S.uX[1][r1->otherId] - U[1]*cdist*cTheta + alpha + op.eps;
+            S.lX[1][i] = S.lX[1][otherVertexId(r1)] - U[1]*cdist*cTheta + opt - op.eps;
+            S.uX[1][i] = S.uX[1][otherVertexId(r1)] - U[1]*cdist*cTheta + alpha + op.eps;
          }
          else
          {
@@ -244,8 +252,8 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
             alpha = maximum(alpha,lomega1,uomega1);
             opt = A*cos(opt) + B*sin(opt);
             opt = minimum(opt,lomega1,uomega1);
-            S.lX[2][i] = S.lX[2][r1->otherId] - U[2]*cdist*cTheta + opt - op.eps;
-            S.uX[2][i] = S.uX[2][r1->otherId] - U[2]*cdist*cTheta + alpha + op.eps;
+            S.lX[2][i] = S.lX[2][otherVertexId(r1)] - U[2]*cdist*cTheta + opt - op.eps;
+            S.uX[2][i] = S.uX[2][otherVertexId(r1)] - U[2]*cdist*cTheta + alpha + op.eps;
          }
          else
          {
@@ -253,34 +261,38 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
          };
       };
 
+      // expanding the box until some reference distances are not satisfied
+      expandBounds(i,v,S.lX,S.uX,op.be,op.eps);
+
       // performing the DDF pruning device
-      pru = DDF(i,v,X,op.eps);
+      perr = DDF(i,v,X);
 
       // if it is necessary to refine the current solution
-      if (pru > 0)
+      if (perr > op.eps)
       {
          // verification of distance between the boxes (if DDF gave a negative result)
-         if (BoxDDF(i,v,S.lX,S.uX,op.eps) == 0)
+         if (BoxDDF(i,v,S.lX,S.uX) < op.eps)
          {
-            // if the distance between the boxes is feasible, then we can try to improve the current solution by local optimization
             k = 0;
-            while (pru > 0 && k < 5)  // max 5 bound expansions allowed per BP call (introduced in version 0.3.1)
-            {
-               expandBounds(i+1,S.e,X,S.lX,S.uX,S.be);
-               spg(i+1,v,X,S,&it,&obj);
+            do // if the distance between the boxes is feasible, 
+            {     // then we can try to improve the current solution by local optimization
+               pperr = perr;
+               spg(i+1,v,X,S,op,info,&it,&obj);
                info->nspg++;
-               pru = DDF(i,v,X,op.eps);
+               perr = DDF(i,v,X);
+               reCenterBounds(i+1,v,X,S.lX,S.uX,op.be,op.eps);
+               if (perr < op.eps)  info->nspgok++;
                k++;
-            };
-            if (pru == 0)  info->nspgok++;
+            }
+            while (perr > op.eps && pperr - perr > op.eps && k < 20 && keep_going);
          };
       };
-      if (pru > 0)  info->pruning++;
+      if (perr > op.eps)  info->pruning++;
 
-      // if the current partial solution is OK (either since the beginning, or after the SPG call)
-      if (pru == 0)
+      // if the current partial solution is OK (either since the beginning, or after local optimization)
+      if (perr < op.eps)
       {
-         // verifying whether the partial solution is too close to the previous computed one
+         // verifying whether the partial solution is too close to the previous one
          if (check)
          {
             dist = 0.0;
@@ -298,7 +310,7 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
          if (i < n - 1)  
          {
             // next vertex
-            bp(i+1,n,m,v,X,S,op,info);
+            bp(i+1,n,v,X,S,op,info);
          }
          else
          {
@@ -339,14 +351,22 @@ void bp(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *i
          };
       };
 
+      // maxtime limit reached?
+      gettimeofday(&currentime,0);
+      if (currentime.tv_sec - startime.tv_sec > op.maxtime)  keep_going = false;
+
+      // skipping one half of the tree (optional)
+      if (i == 3)  if (op.symmetry > 0)
+      {
+         info->pruning++;
+         break;
+      };
+
       // if only one solution is requested, bp stops as soon as the first solution is found
       if (op.allone == 1)  if (info->nsols > 0)  break;
 
       // the search stops after maxsols solutions
       if (info->nsols >= info->maxsols)  break;
-
-      // skipping one half of the tree (optional)
-      if (i == 3)  if (op.symmetry > 0)  break;
 
       // preparing for next iteration
 NEXT: if (omegaIntervalHasNextAlongDirection(current,op.symmetry<2))
@@ -363,9 +383,9 @@ NEXT: if (omegaIntervalHasNextAlongDirection(current,op.symmetry<2))
          if(op.print > 0 && info->nsols == 0)
          {
             if (op.format == 0)
-               printfile(n,v,X,info->output,0);
+               printfile(i,v,X,info->output,0);
             else
-               printpdb(n,v,X,info->output,0);
+               printpdb(i,v,X,info->output,0);
             PRINTED = true;
          };
       };
@@ -377,8 +397,15 @@ NEXT: if (omegaIntervalHasNextAlongDirection(current,op.symmetry<2))
    return;
 };
 
-// branch-and-prune (specific version for instances consisting of exact distances only)
-void bp_exact(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
+// branch-and-prune (specific version for instances consisting of exact, and precise, distances)
+// -> i, current vertex of be realized
+// -> n, total number of vertices forming the instance
+// -> v, array of vertices
+// -> X, current matrix of coordinates
+// -> S, SEARCH structure
+// -> op, OPTION structure
+// -> info, INFORMATION structure
+void bp_exact(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
 {
    int h,k;
    int ldigits;
@@ -387,7 +414,9 @@ void bp_exact(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMAT
    double cdist,lde,mde;
    double cTheta,sTheta;
    double cosOmega,sinOmega[2];
-   REFERENCE *r1,*r2,*r3;
+   double perr,berr;
+   triplet t,best;
+   struct timeval currentime;
 
    // signal handler
    signal(SIGINT,intHandler);
@@ -404,116 +433,199 @@ void bp_exact(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMAT
       X[0][0] = 0.0;  X[1][0] = 0.0;  X[2][0] = 0.0;
 
       // vertex 1
-      r1 = getReference(v,0,1);
-      X[0][1] = -lowerBound(r1);  X[1][1] = 0.0;  X[2][1] = 0.0;
+      t.r1 = getReference(v,0,1);
+      X[0][1] = -lowerBound(t.r1);  X[1][1] = 0.0;  X[2][1] = 0.0;
 
       // vertex 2
-      r2 = getReference(v,1,2);
+      t.r2 = getReference(v,1,2);
       cTheta = costheta(0,1,2,v,X);  sTheta = sqrt(1.0 - cTheta*cTheta);
-      X[0][2] = -lowerBound(r1) + lowerBound(r2)*cTheta;  X[1][2] = lowerBound(r2)*sTheta;  X[2][2] = 0.0;
+      X[0][2] = -lowerBound(t.r1) + lowerBound(t.r2)*cTheta;  X[1][2] = lowerBound(t.r2)*sTheta;  X[2][2] = 0.0;
 
-      i = i + 3;  // branching starts at vertex i+3
+      // we start to count the time for BP from this point
+      gettimeofday(&startime,0);
+
+      // branching starts at vertex i+3
+      i = i + 3;
    };
 
    // updating BP call counter
    info->ncalls++;
 
-   // reference vertices
-   r3 = S.refs[i].r3;  r2 = S.refs[i].r2;  r1 = S.refs[i].r1;
-   cdist = lowerBound(r1);
+   // if we're not backtracking, we are exploring the tree for a new solution
+   if (!backtracking)  newsol = false;
 
-   // theta angles ("bond" angles)
-   cTheta = costheta(r2->otherId,r1->otherId,i,v,X);
-   sTheta = sqrt(1.0 - cTheta*cTheta);
-
-   // generating U matrix (only once)
-   UMatrix(r3->otherId,r2->otherId,r1->otherId,i,X,U);
-
-   // omega angles (torsion angles)
-   cosOmega = cosomega(r3->otherId,r2->otherId,r1->otherId,i,v,X,0.0);
-   sinOmega[0] = sqrt(1.0 - cosOmega*cosOmega);
-   sinOmega[1] = -sinOmega[0];
-   if (op.symmetry == 2)
+   // selection of the discretization vertices
+   cTheta = 0.0;
+   if (info->consec)
    {
-      tmp = sinOmega[0];
-      sinOmega[0] = sinOmega[1];
-      sinOmega[1] = tmp;
+      // the consecutivity assumption is satisfied
+      best.r1 = getReference(v,i,i-1);
+      best.r2 = getReference(v,i,i-2);
+      best.r3 = getReference(v,i,i-3);
+
+      // is this triplet too flat?
+      cTheta = costheta(otherVertexId(best.r2),otherVertexId(best.r1),i,v,X);
    };
 
-   // branching
-   for (h = 0; h < 2 && keep_going; h++)
+   // we select the discretization vertices leading to the smallest error
+   // (if the one above cannot be defined or it is too flat)
+   if (fabs(cTheta) < op.eps)
    {
-      // monitor
-      if (op.monitor)
+      berr = INFTY;
+      t = nullTriplet();  best = nullTriplet();
+
+      do // trying out all possible triplets
       {
-         ldigits = numberOfDigits(i);
-         for (k = 0; k < info->ndigits; k++)  fprintf(stderr,"\b");
-         for (k = 0; k < info->ndigits - ldigits; k++)  fprintf(stderr," ");
-         fprintf(stderr,"%d",i);
-      };
-
-      // generating the coordinates for the current vertex (left-handed branch)
-      genCoordinates(r1->otherId,i,X,U,cdist,cTheta,sTheta,cosOmega,sinOmega[h]);
-
-      // performing the DDF pruning device
-      if (DDF(i,v,X,op.eps) == 0)
-      {
-         // all distances are satisfied at the current layer
-         if (i < n - 1)
+         t = nextTripletRef(v[i].ref,t,op.eps);
+         if (isValidTriplet(t,op.eps))
          {
-            // next vertex
-            bp_exact(i+1,n,m,v,X,S,op,info);
-         }
-         else
-         {
-            // solution found
-            info->nsols = info->nsols + 1;
+            // theta angle ("bond" angles)
+            cTheta = costheta(otherVertexId(t.r2),otherVertexId(t.r1),i,v,X);
+            if (fabs(cTheta) < op.eps)  continue;  // before invoking bp, it was verified
+            sTheta = sqrt(1.0 - cTheta*cTheta);    // that "flattest" triplet is not too flat!
+            if (sTheta < op.eps)  continue;
+            cdist = lowerBound(t.r1);
 
-            // printing the solution (if requested)
-            if (op.print > 1)
+            // generating U matrix
+            UMatrix(otherVertexId(t.r3),otherVertexId(t.r2),otherVertexId(t.r1),i,X,U);
+
+            // omega angle (torsion angles)
+            cosOmega = cosomega(otherVertexId(t.r3),otherVertexId(t.r2),otherVertexId(t.r1),i,v,X,0.0,op.eps);
+            if (cosOmega == -2.0)  continue;
+            sinOmega[0] = sqrt(1.0 - cosOmega*cosOmega);
+
+            // generating the coordinates for the vertex by using the current triplet t
+            genCoordinates(otherVertexId(t.r1),i,X,U,cdist,cTheta,sTheta,cosOmega,sinOmega[0]);
+
+            // verifying the error over the entire set of reference distances
+            perr = DDF(i,v,X);
+            if (perr < berr)
             {
-               if (op.format == 0)
-                  printfile(n,v,X,info->output,info->nsols);
-               else
-                  printpdb(n,v,X,info->output,info->nsols);
-            };
-
-            // evaluating the quality of the solution
-            lde = compute_lde(n,v,X,op.eps);
-            mde = compute_mde(n,v,X,op.eps);
-
-            // best solution found so far
-            if (mde < info->best_mde)
-            {
-               info->best_sol = info->nsols;
-               info->best_lde = lde;
-               info->best_mde = mde;
-               if (op.print == 1)
-               {
-                  if (op.format == 0)
-                     printfile(n,v,X,info->output,0);
-                  else
-                     printpdb(n,v,X,info->output,0);
-               };
+               best.r1 = t.r1;
+               best.r2 = t.r2;
+               best.r3 = t.r3;
+               berr = perr;
             };
          };
       }
-      else
+      while (!isNullTriplet(t) && keep_going);
+   };
+
+   // using the best found triplet to compute the coordinates
+   if (isValidTriplet(best,op.eps))
+   {
+      // theta angle of best
+      cTheta = costheta(otherVertexId(best.r2),otherVertexId(best.r1),i,v,X);
+      sTheta = sqrt(1.0 - cTheta*cTheta);
+      cdist = lowerBound(best.r1);
+
+      // generating U matrix
+      UMatrix(otherVertexId(best.r3),otherVertexId(best.r2),otherVertexId(best.r1),i,X,U);
+
+      // omega angle of best
+      cosOmega = cosomega(otherVertexId(best.r3),otherVertexId(best.r2),otherVertexId(best.r1),i,v,X,0.0,op.eps);
+      if (cosOmega == -2.0)  return;  // infeasibility already detected
+      sinOmega[0] = sqrt(1.0 - cosOmega*cosOmega);
+      sinOmega[1] = -sinOmega[0];
+      if (op.symmetry == 2)
       {
-         info->pruning++;
+         tmp = sinOmega[0];
+         sinOmega[0] = sinOmega[1];
+         sinOmega[1] = tmp;
       };
 
-      // if the sine of omega is zero, there is actually no branching
-      if (fabs(sinOmega[h]) < 1.e-6)  break;
+      // branching
+      for (h = 0; h < 2 && keep_going; h++)
+      {
+         // monitor
+         if (op.monitor && (i == 4 || i%10 == 0 || i == n - 1))
+         {
+            ldigits = numberOfDigits(i);
+            for (k = 0; k < info->ndigits; k++)  fprintf(stderr,"\b");
+            for (k = 0; k < info->ndigits - ldigits; k++)  fprintf(stderr," ");
+            fprintf(stderr,"%d",i);
+         };
 
-      // if only one solution is requested, bp stops as soon as the first solution is found
-      if (op.allone == 1)  if (info->nsols > 0)  break;
+         // generating the coordinates for the vertex by using the best triplet
+         genCoordinates(otherVertexId(best.r1),i,X,U,cdist,cTheta,sTheta,cosOmega,sinOmega[h]);
 
-      // the search stops after maxsols solutions
-      if (info->nsols >= info->maxsols)  break;
+         // performing the DDF pruning device
+         if (DDF(i,v,X) < op.eps)
+         {
+            // all distances are satisfied at the current layer
+            if (i < n - 1)
+            {
+               // next vertex
+               backtracking = false;
+               bp_exact(i+1,n,v,X,S,op,info);
+               backtracking = true;
+            }
+            else
+            {
+               // solution found
+               newsol = true;
+               info->nsols = info->nsols + 1;
 
-      // skipping one half of the tree (optional)
-      if (i == 3)  if (op.symmetry > 0)  break;
+               // printing the solution (if requested)
+               if (op.print > 1)
+               {
+                  if (op.format == 0)
+                     printfile(n,v,X,info->output,info->nsols);
+                  else
+                     printpdb(n,v,X,info->output,info->nsols);
+               };
+
+               // evaluating the quality of the solution
+               lde = compute_lde(n,v,X,op.eps);
+               mde = compute_mde(n,v,X,op.eps);
+
+               // best solution found so far
+               if (mde < info->best_mde)
+               {
+                  info->best_sol = info->nsols;
+                  info->best_lde = lde;
+                  info->best_mde = mde;
+                  if (op.print == 1)
+                  {
+                     if (op.format == 0)
+                        printfile(n,v,X,info->output,0);
+                     else
+                        printpdb(n,v,X,info->output,0);
+                  };
+               };
+            };
+         }
+         else
+         {
+            info->pruning++;
+         };
+
+         // maxtime limit reached?
+         gettimeofday(&currentime,0);
+         if (currentime.tv_sec - startime.tv_sec > op.maxtime)  keep_going = false;
+
+         // skipping one half of the tree (optional)
+         if (i == 3)  if (op.symmetry > 0)
+         {
+            info->pruning++;
+            break;
+         };
+
+         // if we are backtracking after a solution was found, we don't explore the second half of the branch if:
+         // - the consecutivity assumption is satisfied and the current vertex is not symmetric
+         // - the sine of the omega angle is too small (fixed tolerance)
+         if (i > 3)  if (newsol)  if (sinOmega[0] < 0.05 || (info->consec && !S.sym[i]))
+         {
+            info->pruning++;
+            break;
+         };
+
+         // if only one solution is requested, bp stops as soon as the first solution is found
+         if (op.allone == 1)  if (info->nsols > 0)  break;
+
+         // the search stops after maxsols solutions
+         if (info->nsols >= info->maxsols)  break;
+      };
    };
 
    // handling ^C signal catcher
@@ -524,9 +636,9 @@ void bp_exact(int i,int n,int m,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMAT
          if(op.print > 0 && info->nsols == 0)
          {
             if (op.format == 0)
-               printfile(n,v,X,info->output,0);
+               printfile(i,v,X,info->output,0);
             else
-               printpdb(n,v,X,info->output,0);
+               printpdb(i,v,X,info->output,0);
             PRINTED = true;
          };
       };

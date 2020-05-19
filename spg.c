@@ -1,24 +1,19 @@
-/******************************************************************************************************
+/***********************************************************************************************************
   Name:       MD-jeep
               the Branch & Prune algorithm for discretizable Distance Geometry - SPG
   Author:     A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
   Sources:    ansi C
   License:    GNU General Public License v.3
   History:    Jul 28 2019  v.0.3.0  introduced in this version
-              Mar 21 2020  v.0.3.1  the variable S.be is not used anymore to enlarge the bounds
-*******************************************************************************************************/
+              Mar 21 2020  v.0.3.1  the variable S.be is not used directly in SPG to enlarge the bounds
+              May 19 2020  v.0.3.2  parameters are now in the OPTION structure
+                                    features to monitor and print added (SPG may be invoked as a main method)
+************************************************************************************************************/
 
 #include "bp.h"
 
-// SPG parameters: the user cannot modify these parameters in version 0.3.0
-int K = 3;  // fixed to 3 in this version of MDjeep
-double eta = 0.99;
-double gam = 1.e-4;
-double epsobj = 1.e-7;
-double epsg = 1.e-8;
-double epsalpha = 1.e-12;
-double mumin = 1.e-12;
-double mumax = 1.e+12;
+// the dimension is fixed to 3 in this version of MDjeep
+int K = 3;
 
 // this function computes the scalar product between two pairs (X1,y1) and (X2,y2)
 // where X* are matrices, and y* are vectors
@@ -50,11 +45,12 @@ double norm(int n,double **X,int m,double *y)
  *                                                              2 = max number of iterations)
  * Additional memory and parameters in the SEARCH structure S; all memory needs to be pre-allocated.
  */
-int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
+int spg(int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info,int *its,double *obj)
 {
    int i,j,k;
    int m;
    int it,maxIt;
+   int ldigits;
    REFERENCE *ref;
    double mu,alpha;
    double C,Q;
@@ -63,19 +59,22 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
    double dist;
    short flag = 0;
 
-   // the max number of iterations depends on the problem size
-   maxIt = 50 + 10*n;
+   // if spg is refinement method, max number of iterations depends on the problem size
+   if (info->refinement == 1)
+      maxIt = 50 + 10*n;
+   else
+      maxIt = op.maxit;
 
-   // fixing y variables at the centers of the given interval distances
+   // computing y variables
    m = 0;
    for (i = 0; i < n; i++)
    {
       ref = v[i].ref;
       while (ref != NULL)
       {
-         j = ref->otherId;
+         j = otherVertexId(ref);
          dist = distance(j,i,X);
-         S.y[m] = projection(dist,lowerBound(ref),upperBound(ref),gam);
+         S.y[m] = projection(dist,lowerBound(ref),upperBound(ref),op.gam);
          ref = ref->next;
          m++;
       };
@@ -87,9 +86,18 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
    C = objval;
 
    // running Spectral Projected Gradient Descent method
-   it = 1;  Q = 1;  alpha = 1.0;
-   while (maxIt > it && objval > epsobj && alpha > epsalpha)
+   it = 1;  Q = 1.0;  alpha = 1.0;
+   while (maxIt > it && objval > op.epsobj && alpha > op.epsalpha)
    {
+      // monitor
+      if (info->method == 1 && op.monitor)
+      {
+         ldigits = numberOfDigits(it);
+         for (k = 0; k < info->ndigits + 9; k++)  fprintf(stderr,"\b");
+         for (k = 0; k < info->ndigits - ldigits; k++)  fprintf(stderr," ");
+         fprintf(stderr,"%d %8.2le",it,objval);
+      };
+
       // computing spectral parameter
       if (it == 1)
       {
@@ -100,8 +108,8 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
          differenceMatrix(K,n,S.gX,S.gXp,S.YX);  differenceVector(m,S.gy,S.gyp,S.Yy);
          differenceMatrix(K,n,X,S.Xp,S.ZX);  differenceVector(m,S.y,S.yp,S.Zy);
          mu = scalarProd(n,S.YX,S.ZX,m,S.Yy,S.Zy) / scalarProd(n,S.ZX,S.ZX,m,S.Zy,S.Zy);
-         if (mu < mumin)  mu = mumin;
-         if (mu > mumax)  mu = mumax;
+         if (mu < op.mumin)  mu = op.mumin;
+         if (mu > op.mumax)  mu = op.mumax;
       };
 
       // making a full step over the opposite direction of the gradient
@@ -119,7 +127,7 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
       {
          for (k = 0; k < K; k++)
          {
-            S.sX[k][i] = projection(S.sX[k][i],S.lX[k][i],S.uX[k][i],gam);
+            S.sX[k][i] = projection(S.sX[k][i],S.lX[k][i],S.uX[k][i],op.gam);
          };
       };
 
@@ -130,7 +138,7 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
          ref = v[i].ref;
          while (ref != NULL)
          {
-            S.sy[k] = projection(S.sy[k],lowerBound(ref),upperBound(ref),gam);
+            S.sy[k] = projection(S.sy[k],lowerBound(ref),upperBound(ref),op.gam);
             ref = ref->next;
             k++;
          };
@@ -146,7 +154,7 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
       };
       for (j = 0; j < m; j++)  S.Dy[j] = S.sy[j] - S.y[j];
 
-      if (norm(n,S.DX,m,S.Dy) < epsg)
+      if (norm(n,S.DX,m,S.Dy) < op.epsg)
       {
          flag = 1;
          break;
@@ -168,19 +176,31 @@ int spg(int n,VERTEX *v,double **X,SEARCH S,int *its,double *obj)
 
          newobjval = compute_stress(n,v,X,S.y);
       }
-      while (alpha > epsalpha && newobjval > C + gam*alpha*scalprod);
+      while (alpha > op.epsalpha && newobjval > C + op.gam*alpha*scalprod);
 
-      if (alpha <= epsalpha)  scalprod = scalprod/(norm(n,S.gX,m,S.gy)*norm(n,S.DX,m,S.Dy));
+      if (alpha <= op.epsalpha)  scalprod = scalprod/(norm(n,S.gX,m,S.gy)*norm(n,S.DX,m,S.Dy));
       newobjval = compute_stress(n,v,X,S.y);
 
       // preparing for next iteration
-      C = eta*Q*C;
-      Q = eta*Q + 1.0;
+      C = op.eta*Q*C;
+      Q = op.eta*Q + 1.0;
       C = (C + newobjval)/Q;
       objval = newobjval;
       stress_gradient(n,v,X,S.y,S.gX,S.gy,S.memory);
 
       it++;
+   };
+
+   // printing (optional)
+   if (info->method == 1)
+   {
+      if (op.print > 0)
+      {
+         if (op.format == 0)
+            printfile(i,v,X,info->output,0);
+         else
+            printpdb(i,v,X,info->output,0);
+      };
    };
 
    // updating output info

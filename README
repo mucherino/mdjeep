@@ -1,8 +1,8 @@
 
-*** MD-jeep, version 0.3.1 ***
+*** MD-jeep, version 0.3.2 ***
 
 The Branch & Prune algorithm for Discretizable Distance Geometry
-Copyright (C) 2019, Mucherino, Goncalves, Lavor, Liberti, Lin, Maculan
+Copyright (C) 2020, Mucherino, Goncalves, Lavor, Liberti, Lin, Maculan
 GNU General Public License v.3
 
 This program is free software: you can redistribute it and/or modify it under the terms of the 
@@ -10,13 +10,13 @@ GNU General Public License as published by the Free Software Foundation, either 
 or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the 
-implied warranty of  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License 
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License 
 for more details.
 
 You should have received a copy of the GNU General Public License along with this program.
 If not, see <https://www.gnu.org/licenses/>.
 
-From version 0.3.0, MDjeep is able to solve instances containing both exact and interval distance values.
+Since version 0.3.0, MDjeep is able to solve instances containing both exact and interval distance values.
 Although initially written for problems arising in the context of structural biology, MDjeep is a general 
 solver capable to solve instances from various applications. General "graph" notions are therefore employed 
 (vertex, distance edge).
@@ -24,53 +24,111 @@ solver capable to solve instances from various applications. General "graph" not
 Discretizable Distance Geometry consists of a subclass of problems for which the search space can be discretized 
 and reduced to a tree. Given a graph G=(V,E,d), with vertex set V, edge set E indicating whether the distance
 between two vertices is known or not, and a weight function d providing the numerical values for such distances,
-a problem instance falls in our special subclass where there exist a vertex order on V such that:
-1. the first 3 vertices in the order form a clique with exact distances
+an instance of this problem falls in the discretizable subclass where there exist a vertex order on V such that:
+1. the first 3 vertices in the order form a clique with exact distances;
 2. for all other vertices with rank i > 3, there must exist three reference vertices j1, j2 and j3, such that:
    j1 < i, j2 < i, j3 < i, (j1,i) \in E, (j2,i) \in E, (j3,i) \in E.
 In this version, we suppose that only one of the three distances d(j1,i), d(j2,i) and d(j3,i) can be represented
-by an interval, while the others are supposed to be exact. For more information, please refer to our list of
-publications below.
+by an interval, while the others are supposed to be exact (ie, its lower and upper bounds are closer than the
+predefined error tolerance). 
 
-syntax: ./mdjeep [options] instance.nmr
+Two methods are currently implemented in MDjeep for the solution of the instances. The Branch-and-Prune (BP)
+algorithm is specifically designed to solve instances satisfying the discretization assumptions given above.
+The Spectral Projected Gradient (SPG) is an algorithm for local optimization, which may be either run alone,
+or as a refinement step in BP. For more information, please refer to our list of publications below.
 
-NMR file format (.nmr) basically consists of a list of distances, with some additional information about the vertices.
-Every line of the text file should contain (in this specific order):
-- an integer label for the first vertex (unsigned int)
-- an integer label for the second vertex (unsigned int)
-- an integer label for the group of the first vertex (unsigned int)
-- an integer label for the group of the second vertex (unsigned int)
-- the distance lower bound (double)
-- the distance upper bound (double)
-- a string label for the first vertex (char[max 20])
-- a string label for the second vertex (char[max 20])
-- a string label for the group of the first vertex (char[max 20])
-- a string label for the group of the second vertex (char[max 20])
+Since version 0.3.2, MDjeep accepts in input MDfiles (with mdf extension). These are text files containing some 
+main specifications for loading the problem instances, and for running the solution methods:
 
-Important to notice:
-- the integer vertex labels need to be consecutive, but the smallest label is not supposed to be equal to 0 (neither to 1);
-  the only constraint for the smallest label is that it needs to be nonnegative
-- this format is not compatible with MDjeep versions 0.1 and 0.2: to load instances in the previous file format,
-  please use the option -v (see below)
+syntax: ./mdjeep [options] mdfile.mdf
+
+The MDfile is supposed to contain the specifications for a certain number of predefined "fields". Every field 
+key-word is followed by its name; key-word and name need to be separated by a colon (:). Every value given
+in MDfiles appears on a single line and needs to respect the following syntax (blank characters and tabs cannot 
+be contained in names or values, as they both act as separators):
+
+ name [colon] value
+
+After the definition of a field's name, every new line starting with the key-word "with" allows to set up one 
+of the attributes of the field. Some attributes may have default values, so that it is not strictly necessary 
+to specify them in the MDfile; other attributes are mandatory and their absence in the MDfile will cause the 
+termination of MDjeep with code 1.
+
+In the MDfile, the first mandatory field is "instance". Any string of characters is a valid name for the instance. 
+The attributes "file", "format" and "separator" need to be specified in the MDfile in the subsequent lines 
+starting with the key-word "with":
+- file: it's the path and name of the distance file, where distances are arranged line by line
+- format: it's the format that MDjeep expects to find for the distance file
+- separator: this is the character that serves as a separator in the distance file
+The format can include the following elements:
+- Id1 (nonnegative integer, mandatory), identifier of vertex 1 (in the line)
+- Id2 (nonnegative integer, mandatory), identifier of vertex 2 (in the line)
+- groupId1 (integer), group identifier of vertex 1
+- groupId2 (integer), group identifier of vertex 2
+- Name1 (char string), the name of vertex 1
+- Name2 (char string), the name of vertex 2
+- groupName1 (char string), the group name of vertex 1
+- groupName2 (char string), the group name of vertex 2
+- lb (double, mandatory), the lower bound for the distance between vertex 1 and 2
+- ub (double, mandatory), the upper bound for the distance between vertex 1 and 2
+Notice that:
+- if the distance file contains additional information that MDjeep does not need to load, the format element
+  "ignore" can be used to skip this information;
+- the integer vertex labels need to be consecutive, but the smallest label is not supposed to be equal to 0 
+  (neither to 1); the only constraint for the smallest label is that it needs to be nonnegative;
+- the format compatible with MDjeep versions 0.1 and 0.2 is "Id1 Id2 lb ub Name1 Name2 groupName1 groupName2";
+- the format introduced in MDjeep 0.3.0 is "Id1 Id2 groupId1 groupId2 lb ub Name1 Name2 groupName1 groupName2";
+- the separator is one single character, and it needs to be specified between single quotes; blank characters
+  and tabs are always separators, so if not specified, the default separators are all blank characters and tabs.
+
+Another mandatory field of the MDfile is the "method". Two method names can be specified in the current version
+of MDjeep: either "bp", or "spg" (see above). In both cases, a predefined set of attributes can then be specified
+on the following lines of the MDfile with the key-word "with". The reader can refer to the examples of MDfile
+provided with our instances to discover the several attributes that can be set up. Many of such attributes have
+default values: if not specifed in the MDfile, the default value are automatically used. Other attributes are
+mandatory: when using SPG as a main method, for example, the path and name of the text file containing the starting 
+point (attribute "startpoint"), as well as the maximum number of iterations (attribute "maxit"), both need to be 
+specified. In this version of MDjeep, it is mandatory for the bp method to have a refinement method: this can be 
+specified via the field "refinement". Since only bp and spg are currently implemented in MDjeep, the only option 
+for bp for a refinement method is currently spg. The key-word "with" can be invoked multiple times for the 
+same attribute in the same MDfile: in such a case, the last specified value is the one that will actually be
+considered.
+
+Notice that it is possible to include comments in the MDfiles: very line starting with the character '#' is 
+ignored by MDjeep. Even if not specified as a separator, blank characters and tabs cannot be part of attribute
+values, and therefore they work as sort of "general separators".
 
 MDjeep options (you can access to this list by running MDjeep without arguments):
-          -v | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)
-          -e | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)
-          -r | sets the resolution parameter (needs an extra argument, double, default is 1.0)
-        -sym | only one symmetric half of the tree is explored (argument 1 or 2)
-          -1 | the algorithm stops at the first solution
+          -1 | the specified method stops at the first solution (always true for SPG)
+          -l | specifies after how many solutions the method should stop (applies only to BP)
+        -sym | only one symmetric half of the tree is explored (for BP, argument may be 1 or 2)
           -p | prints the best found solution in a text file
           -P | prints all found solutions (in the same text file)
              |  (when using -1, options -p and -P have the same effect)
-          -f | specifies the output format (default is "txt", may be changed to "pdb")
+          -f | specifies the output format (default is "xyz", may be changed to "pdb")
      -consec | verifies whether the consecutivity assumption is satisfied
-  -nomonitor | does no show the current layer number during the execution to improve performace
+  -nomonitor | does not show the current layer number during the execution to improve performance
+          -r | obsolete, resolution parameter can now be specified in MDfile (method field)
+          -e | obsolete, tolerance epsilon can now be specified in MDfile (method field)
+          -v | obsolete, file formats can now be specified in MDfile (instance field)
 
 Notice that the use of option -nomonitor can actually improve MDjeep performances; moreover, it is recommended
 to use it when redirecting stdout to a file.
 
-If MDjeep takes too long to solve your instance, you can terminate it with the ^C signal and verify the current partial
-solution in the output file (it will be created before termination if one of the two options -p or -P were used).
+Since this version of MDjeep, part of the parameters can be specified through the MDfile, another part through 
+the input arguments. This separation is supposed to keep on one side the parameters that are related to a 
+specific method (the method attributes in the MDfile) and on another side the parameters that are generic (the 
+MDjeep input arguments), such as the printing parameters. As new methods will be added to MDjeep, this separation 
+may be subject to change: we'll try our best to guarantee the compatibility for future versions of MDjeep, at 
+least for near versions.
+
+Example of use with the new set pf proteins instances with low precision distances:
+
+ mdjeep -1 instances/0.3/proteinSet2/proteins.mdf
+
+If MDjeep takes too long to solve your instance, you can terminate it with the ^C signal and verify the current 
+partial solution in the output file (it will be created before termination if one of the two options -p or -P 
+were used).
 
 If you refer to this sofware in your publications, please cite the appropriate paper(s).
 Follows a list of main publications:

@@ -1,5 +1,5 @@
 
-This set of instances is released with the version 0.3.0 of MDjeep
+This set of instances is released with the version 0.3.2 of MDjeep
 
 The instances have been generated as described in:
 
@@ -8,6 +8,6 @@ An Efficient Exhaustive Search for the Discretizable Distance Geometry Problem w
 to appear in IEEE Conference Proceedings, Federated Conference on Computer Science and Information Systems (FedCSIS19), 
 Workshop on Computational Optimization (WCO19), Leipzig, Germany, September 2019. 
 
-but by keeping every distance in high precision (about 16 decimal digits). For this reason, the results obtained with 
-MDjeep 0.3.0 and those presented in the paper differ.
+The experiments presented in this paper, however, were obtained with a previous (and still experimental) version
+of MDjeep 0.3.0. The results obtained with the current version and those presented in the paper may therefore differ.
 

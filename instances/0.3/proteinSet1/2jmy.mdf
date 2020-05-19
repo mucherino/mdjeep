@@ -1,0 +1,22 @@
+
+# 2jmy
+
+instance: 2jmy
+with file: test/instances/0.3/proteinSet1/2jmy.nmr
+with format: id1 id2 groupid1 groupid2 lb ub name1 name2 groupname1 groupname2
+with separator: ' '
+
+method: bp
+with resolution: 5.0
+with tolerance: 0.001
+with maxtime: 600
+
+refinement: spg
+with eta: 0.99
+with gamma:  1.e-4
+with epsobj: 1.e-7
+with epsg: 1.e-8
+with epsalpha: 1.e-12
+with mumin: 1.e-12
+with mumax: 1.e+12
+

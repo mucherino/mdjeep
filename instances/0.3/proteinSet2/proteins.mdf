@@ -1,0 +1,29 @@
+
+# proteinSet2
+
+instance: protein
+with file: instances/0.3/proteinSet2/1hj0.nmr
+#with file: instances/0.3/proteinSet2/2jmy.nmr
+#with file: instances/0.3/proteinSet2/2ksl.nmr
+#with file: instances/0.3/proteinSet2/2kxa.nmr
+#with file: instances/0.3/proteinSet2/2lr9.nmr
+#with file: instances/0.3/proteinSet2/2rv5.nmr
+#with file: instances/0.3/proteinSet2/4cz4.nmr
+#with file: instances/0.3/proteinSet2/6aab.nmr
+with format: Id1 Id2 groupId1 groupId2 lb ub Name1 Name2 groupName1 groupName2
+with separator: ' '
+
+method: bp
+with resolution: 5.0
+with tolerance: 0.001
+with maxtime: 6000
+
+refinement: spg
+with eta: 0.99
+with gamma:  1.e-4
+with epsobj: 1.e-7
+with epsg: 1.e-8
+with epsalpha: 1.e-12
+with mumin: 1.e-12
+with mumax: 1.e+12
+

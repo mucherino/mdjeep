@@ -1,0 +1,31 @@
+
+# sensorSet1
+
+instance: sensor
+with file: instances/0.3/sensorSet1/sensor056.nmr
+#with file: instances/0.3/sensorSet1/sensor073.nmr
+#with file: instances/0.3/sensorSet1/sensor089.nmr
+#with file: instances/0.3/sensorSet1/sensor099.nmr
+#with file: instances/0.3/sensorSet1/sensor103.nmr
+#with file: instances/0.3/sensorSet1/sensor112.nmr
+#with file: instances/0.3/sensorSet1/sensor118.nmr
+#with file: instances/0.3/sensorSet1/sensor129.nmr
+#with file: instances/0.3/sensorSet1/sensor138.nmr
+#with file: instances/0.3/sensorSet1/sensor148.nmr
+with format: Id1 Id2 lb ub
+with separator: ' '
+
+method: bp
+with resolution: 5.0
+with tolerance: 0.001
+with maxtime: 6000
+
+refinement: spg
+with eta: 0.99
+with gamma:  1.e-4
+with epsobj: 1.e-7
+with epsg: 1.e-8
+with epsalpha: 1.e-12
+with mumin: 1.e-12
+with mumax: 1.e+12
+

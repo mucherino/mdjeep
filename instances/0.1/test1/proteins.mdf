@@ -1,0 +1,30 @@
+
+# test1 (exact distances)
+
+instance: test1
+with file: instances/0.1/test1/1a70.nmr
+#with file: instances/0.1/test1/1crn.nmr
+#with file: instances/0.1/test1/1hoe.nmr
+#with file: instances/0.1/test1/1m40.nmr
+#with file: instances/0.1/test1/1mqq.nmr
+#with file: instances/0.1/test1/1pht.nmr
+#with file: instances/0.1/test1/1ppt.nmr
+#with file: instances/0.1/test1/1rgs.nmr
+#with file: instances/0.1/test1/2e7z.nmr  
+#with file: instances/0.1/test1/3b34.nmr  
+#with file: instances/0.1/test1/1bpm.nmr
+#with file: instances/0.1/test1/1fs3.nmr
+#with file: instances/0.1/test1/1jk2.nmr
+#with file: instances/0.1/test1/1mbn.nmr
+#with file: instances/0.1/test1/1n4w.nmr  
+#with file: instances/0.1/test1/1poa.nmr
+#with file: instances/0.1/test1/1ptq.nmr
+#with file: instances/0.1/test1/1rwh.nmr
+#with file: instances/0.1/test1/2erl.nmr
+with format: Id1 Id2 lb ub Name1 Name2 groupName1 groupName2
+with separator: ' '
+
+method: bp
+with tolerance: 0.001
+with maxtime: 10
+

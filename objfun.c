@@ -5,6 +5,8 @@
   Sources:    ansi C
   License:    GNU General Public License v.3
   History:    Jul 28 2019  v.0.3.0  introduced in this version
+              Mar 21 2020  v.0.3.1  no changes
+              May 19 2020  v.0.3.2  no changes
 ****************************************************************************************************/
 
 #include "bp.h"
@@ -28,7 +30,7 @@ double compute_mde(int n,VERTEX *v,double **X,double eps)
       ref = v[i].ref;
       while (ref != NULL)
       {
-         j = ref->otherId;
+         j = otherVertexId(ref);
          dist = distance(j,i,X);
          if (isExactDistance(ref,eps))
          {
@@ -70,7 +72,7 @@ double compute_lde(int n,VERTEX *v,double **X,double eps)
       ref = v[i].ref;
       while (ref != NULL)
       {
-         j = ref->otherId;
+         j = otherVertexId(ref);
          dist = distance(j,i,X);
          if (isExactDistance(ref,eps))
          {
@@ -114,7 +116,7 @@ double compute_stress(int n,VERTEX *v,double **X,double *y)
       ref = v[i].ref;
       while (ref != NULL)
       {
-         j = ref->otherId;
+         j = otherVertexId(ref);
          term = distance(j,i,X) - y[h];
          term = term*term;
          sigma = sigma + term;
@@ -154,7 +156,7 @@ void stress_gradient(int n,VERTEX *v,double **X,double *y,double **gX,double *gy
       ref = v[i].ref;
       while (ref != NULL)
       {
-         j = ref->otherId;
+         j = otherVertexId(ref);
          tmp = distance(j,i,X);
          gy[h] = -2.0*(tmp - y[h]);
          if (tmp > 0.0)

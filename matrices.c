@@ -8,6 +8,7 @@
               May 08 2014  v.0.2    functions costheta and cosomega updated
               Jun 28 2019  v.0.3.0  adding functions for vector and matrix manipulation
               Mar 21 2020  v.0.3.1  adding functions areSameVector and areSameMatrix (for tests)
+              May 19 2020  v.0.3.2  no changes
 **************************************************************************************************/ 
 
 #include "bp.h"
@@ -54,7 +55,7 @@ bool areSameVector(size_t n,double *v1,double *v2)
    return same;
 };
 
-// this function computes the cross product between two 3d vectors
+// this function computes the cross product between two 3D vectors
 void crossProdVector(double *v1,double *v2,double *res)
 {
    res[0] = (v1[1]*v2[2]) - (v1[2]*v2[1]); 
@@ -77,7 +78,7 @@ double* freeVector(double *v)
    return NULL;
 };
 
-// this function allocates memory for a matrix (2-dim array of double)
+// this function allocates memory for a matrix (2D array of double)
 double** allocateMatrix(size_t n,size_t m)
 {
    int i;

@@ -8,10 +8,11 @@
 #             May 10 2014  v.0.2    second release (no files added)
 #             Jul 28 2019  v.0.3.0  third release (added files vertex.c, distance.c, objfun.c, spg.c, splitime.c)
 #             Mar 21 2020  v.0.3.1  no new files added
+#             May 19 2020  v.0.3.2  file readfile.c added
 #################################################################################################################
 
 
-OBJ= main.o bp.o vertex.o distance.o matrices.o pruningtest.o objfun.o spg.o utils.o printfile.o
+OBJ= main.o bp.o vertex.o distance.o matrices.o pruningtest.o objfun.o spg.o utils.o readfile.o printfile.o
 
 mdjeep: $(OBJ) splitime.o
 	gcc -O3 -o mdjeep $(OBJ) splitime.o -lm
@@ -23,5 +24,5 @@ splitime.o: splitime.c
 	gcc -O3 -c $<
 
 clean:
-	\rm *.o
+	\rm mdjeep *.o
 

@@ -10,11 +10,15 @@
                                     functions for managing omega lists added
                                     functions projection and removExtension added
               Mar 21 2020  v.0.3.1  functions numberOfOmegaIntervals, expandBounds, numberOfDigits, 
-                                    minimun and maximum added
+                                              minimun and maximum added
+              May 19 2020  v.0.3.2  functions for analyzing and reading input distance file added
+                                    functions createBox and reCenterBounds added
+                                    function expandBounds reimplemented
 *****************************************************************************************************/
 
 #include "bp.h"
 
+int errno;
 extern double INFTY;
 
 /* functions to manage omega angle lists */
@@ -82,7 +86,7 @@ Omega* omegaIntervalNext(Omega *current)
    return current->next;
 };
 
-// this function indicates whether another omage interval precedes the current one
+// this function indicates whether another omega interval precedes the current one
 bool omegaIntervalHasPrev(Omega *current)
 {
    return current->prev != NULL;
@@ -117,7 +121,7 @@ Omega* omegaIntervalNextAlongDirection(Omega *current,bool asNext)
    return new;
 };
 
-// this function "attaches" a new omega interval to a given omega interval
+// this function "attaches" a new omega interval to the omega list starting with the given omega interval
 // -> it is supposed that the next omega interval is NULL (otherwise memory for next is deallocated)
 void attachNewOmegaInterval(Omega *current,double l,double u)
 {
@@ -140,8 +144,8 @@ void attachNewOmegaInterval(Omega *current,double l,double u)
    };
 };
 
-// this function splits the omega interval list starting with "current" in subintervals if 
-// their "arclength" (radius*angle) is larger than the given threshold "resolution"
+// this function splits the omega interval list starting with "current" in subintervals
+// if their "arclength" (radius*angle) is larger than the given threshold "resolution"
 void splitOmegaIntervals(Omega *current,double radius,double resolution)
 {
    int i;
@@ -183,7 +187,7 @@ void splitOmegaIntervals(Omega *current,double radius,double resolution)
    };
 };
 
-// this function counts the number of omega interval from a given interval
+// this function counts the number of omega intervals that are next from a given interval
 int numberOfOmegaIntervals(Omega *current)
 {
    int count = 0;
@@ -266,26 +270,33 @@ double costheta(int i,int j,int k,VERTEX *v,double **X)
 };
 
 // computing the cosine of omega (with available distances when possible, or computed distances)
-double cosomega(int i3,int i2,int i1,int i,VERTEX *v,double **X,double range)
+// -> range is a real between 0.0 and 1.0 indicating the value of the distance in the interval distance between i3 and i
+// -> when values of range equal to 0.0 or 1.0, the first (>=0.0 or <=1.0) value is chosen for which the angle is feasible
+//   (so that the cosine can be actually computed)
+// -> eps is the step between two consecutive range values, to be modified until the cosine can be computed
+// -> the returning value is the cosine value on success, it is equal to -2.0 otherwise
+double cosomega(int i3,int i2,int i1,int i,VERTEX *v,double **X,double range,double eps)
 {
    REFERENCE *r12,*r13,*r14,*r23,*r24,*r34;
    double d12,d13,d14,d23,d24,d34;
    double d12q,d13q,d14q,d23q,d24q,d34q;
    double a,b,c,e,f;
-   double val;
+   double r,val;
 
+   // references
    r12 = getReference(v,i3,i2);  r13 = getReference(v,i3,i1);  r23 = getReference(v,i2,i1);  // may not be available
    r14 = getReference(v,i3,i);   r24 = getReference(v,i2,i);   r34 = getReference(v,i1,i);   // known because of discretization
-
    if (r14 == NULL || r24 == NULL || r34 == NULL)
    {
       fprintf(stderr,"cosomega: internal error; it looks like the discretization assumptions are not satisfied\n");
       abort();
    };
-   d14 = lowerBound(r14) + range*(upperBound(r14) - lowerBound(r14));  d14q = d14*d14;
+
+   // fixed discretization distances to vertex i
    d24 = lowerBound(r24);  d24q = d24*d24;
    d34 = lowerBound(r34);  d34q = d34*d34;
 
+   // non-discretization distances
    if (r12 != NULL)  d12 = lowerBound(r12);  else  d12 = distance(i3,i2,X);
    d12q = d12*d12;
    if (r13 != NULL)  d13 = lowerBound(r13);  else  d13 = distance(i3,i1,X);
@@ -293,78 +304,390 @@ double cosomega(int i3,int i2,int i1,int i,VERTEX *v,double **X,double range)
    if (r23 != NULL)  d23 = lowerBound(r23);  else  d23 = distance(i2,i1,X);
    d23q = d23*d23;
 
-   a = d12q + d24q - d14q;  a = a / (2.0*d12*d24);
-   b = d24q + d23q - d34q;  b = b / (2.0*d24*d23);
-   c = d12q + d23q - d13q;  c = c / (2.0*d12*d23);
-   e = 1.0 - b*b;
-   f = 1.0 - c*c;
-   if (e < 0.0 || f < 0.0)
+   // computing cosine of first feasible angle
+   r = range;  e = -1.0;  f = -1.0;
+   while (r >= 0.0 && r <= 1.0 && (e < 0.0 || f < 0.0))
    {
-      if (e < -0.1 && f < -0.1)
-      {
-         fprintf(stderr,"cosomega: internal error\n");
-         abort();
-      }
-      else
-      {
-         if (e < 0.0)  e = 0.0;
-         if (f < 0.0)  f = 0.0;
-      };
+      // variable discretization distance (depends on value of range)
+      d14 = lowerBound(r14) + r*(upperBound(r14) - lowerBound(r14));  d14q = d14*d14;
+
+      // computing cosine
+      a = d12q + d24q - d14q;  a = a / (2.0*d12*d24);
+      b = d24q + d23q - d34q;  b = b / (2.0*d24*d23);
+      c = d12q + d23q - d13q;  c = c / (2.0*d12*d23);
+      e = 1.0 - b*b;
+      f = 1.0 - c*c;
+
+      // preparing for next loop
+      if (range == 0.0)  r = r + eps;
+      if (range == 1.0)  r = r - eps;
    };
+
+   // perform correction if error is "relatively small"
+   if (e < 0.0 && e > -1.0)  e = 0.0;
+   if (f < 0.0 && f > -1.0)  f = 0.0;
+
+   // stop if feasible angle was not found
+   if (e < 0.0 || f < 0.0)  return -2.0;
+
+   // final computation of cosine
    e = sqrt(e);  f = sqrt(f);
    val = (a - b*c) / (e*f);
    if (val < -1.0)  val = -1.0;
    if (val >  1.0)  val =  1.0;
-
    return val;
+};
+
+/* functions for "string" management */
+
+// counting the number of digits forming a strictly positive integer number
+int numberOfDigits(int integer)
+{
+   int nd = 0;
+   while (integer > 0)
+   {
+      integer = integer/10;
+      nd++;
+   };
+   return nd;
+};
+
+// counting the number of digits forming the decimal part of a double number
+int precisionOf(double real)
+{
+   int nd = 0;
+   if (real < 0.0)  real = -real;
+   while (real != floor(real))
+   {
+      real = 10.0*real;
+      nd++;
+   };
+   return nd;
+};
+
+// function to verify whether the input char is the delimiter for the end of a string
+bool isLastChar(char c)
+{
+   return c == '\0';
+};
+
+// function to verify whether the input char is a "separator"
+// -> it is compared to the separator specified in sep, but also to blank chars and tabs
+bool isSeparator(char c,char sep)
+{
+   if (c == sep)   return true;
+   if (c == ' ')   return true;
+   if (c == '\t')  return true;
+   return false;
+};
+
+// function to move the char pointer to the next char that is not a blank char nor a tab
+// -> the returning value is the pointer to the next char that is non-blank and not a tab
+//   (NULL if it doesn't exit)
+char* nextNonBlank(char *c)
+{
+   while (!isLastChar(c[0]) && (c[0] == ' ' || c[0] == '\t'))  c++;
+   if (isLastChar(c[0]))  return NULL;
+   return c;
+};
+
+// function to verify whether the input char is delimiter for "new line"
+bool isNewLineDelimiter(char c)
+{
+   if (c == '\n')  return true;
+   if (c == '\r')  return true;
+   return false;
+};
+
+// function to remove the "ending" chars from an array of chars
+// -> ending chars are blank chars, \n and \r
+size_t removEndingChars(char *c)
+{
+   size_t l = strlen(c) - 1;
+   while (l >= 0 && (c[l] == ' ' || isLastChar(c[l]) || isNewLineDelimiter(c[l])))
+   {
+      c[l] = '\0';
+      l--;
+   };
+   return l;
+};
+
+// function which looks for the next colon (:) in a char string passing over blank chars (or tabs)
+// -> the returning value is the pointer to the colon, if it is found before '\0' and any other char different from blank or tab
+char* nextColon(char *c)
+{
+   c = nextNonBlank(c);
+   if (c[0] == ':')  return c;
+   return NULL;
+};
+
+// function to verify whether a string represents an integer number
+// -> the string is supposed to be allocated and contain the ending '\0'
+// -> the string cannot contain anything else other than the integer number
+bool isInteger(char *c)
+{
+   char *pointer;
+
+   // no digits
+   if (isLastChar(c[0]))  return false;
+
+   // first digit (sign?)
+   if (c[0] == '-' || c[0] == '+')  c++;
+
+   // first (actual) digit
+   if (!isLastChar(c[0]))
+   {
+      if (isdigit(c[0]))
+      {
+         if (c[0] == '0' && !isLastChar(c[1]))  return false;  // avoiding integers starting with 0's
+      }                                                       // (these are valid integers for strtol)
+      else return false;
+   };
+
+   // all digits
+   errno = 0;  // global error variable
+   strtol(c,&pointer,10);
+   if (errno != 0)  return false;  // it's not an integer
+   if (pointer < c + strlen(c))  return false;  // the string does not only contain the integer
+
+   return true;
+};
+
+// function to verify whether a string represents a real number
+// -> the string is supposed to be allocated and contain the ending '\0'
+// -> the string cannot contain anything else other than the real number
+bool isReal(char *c)
+{
+   char *pointer;
+
+   // no digits
+   if (isLastChar(c[0]))  return false;
+
+   // first digit (sign?)
+   if (c[0] == '+' || c[0] == '-')  c++;
+
+   // first (actual) digit
+   if (!isLastChar(c[0]))
+   {
+      if (isdigit(c[0]))
+      {
+         if (c[0] == '0' && c[1] != '.')  return false;   // avoiding reals starting with 0's before actual value
+      }
+      else return false;
+   };
+
+   // all digits
+   errno = 0;  // global error variable
+   strtod(c,&pointer);
+   if (errno != 0)  return false;  // it's not a real
+   if (pointer < c + strlen(c))  return false;  // the string does not only contain the real number
+
+   return true;
+};
+
+// removing the extension from the input file (if there is such an extension)
+// -> it creates a new string with the file name without extension
+//   (memory is allocated for the new string)
+char* removExtension(char *filename)
+{
+   int i,k;
+   char* output = strdup(filename);
+
+   k = strlen(output) - 1;
+   while (k >= 0 && output[k] != '.' && output[k] != '/')  k--;
+   if (output[k] == '.')
+   {
+      output[k] = '\0';
+      for (i = k + 1; i < strlen(output); i++)  output[k] = '\0';
+   };
+
+   return output;
+};
+
+// detecting the types in a character string of words
+// -> the array of char c needs to be a valid pointer (with allocated memory)
+// -> "sep" is the separator (one character)
+// -> the binary output is the format specified with this internal code: 01=integer,10=real,11=alpha,00=none/end)
+//    0UL is returned when the char array is empty,
+//                 or when the char array contains more than 4*sizeof(unsigned long) words
+unsigned long detectTypes(char *c,char sep)
+{
+   int i,i0,k;
+   int n,nwords;
+   char tmp,*pointer;
+   unsigned long ct;
+   unsigned long type = 0UL;
+
+   if (!isLastChar(c[0]))
+   {
+      // how many values on the line?
+      i = 0;  nwords = 0;
+      while (!isLastChar(c[i]) && isSeparator(c[i],sep))  i++;
+      i0 = i;
+      if (!isLastChar(c[i]))  nwords = 1;
+      while (!isLastChar(c[i]))
+      {
+         if (isSeparator(c[i],sep))
+         {
+            i++;
+            while (!isLastChar(c[i]) && isSeparator(c[i],sep))  i++;
+            if (!isLastChar(c[i]))  nwords++;
+         }
+         else i++;
+      };
+      n = i + 1;
+
+      // nothing to do if the line contains no words      
+      if (nwords == 0)  return 0UL;
+
+      // verifying the word types (with isInteger and isReal)
+      i = i0;  k = 0;
+      pointer = c + i;
+      while (i < n)
+      {
+         if (isLastChar(c[i]) || isSeparator(c[i],sep))
+         {
+            if (!isLastChar(pointer[0]))
+            {
+               tmp = c[i];  c[i] = '\0';
+               if (isInteger(pointer))
+                  ct = 1;
+               else if (isReal(pointer))
+                  ct = 2;
+               else
+                  ct = 3;
+               type = (type << 2) | ct;
+               k = k + 2;  if (k > 8*sizeof(unsigned long))  return 0UL;
+               c[i] = tmp;  i++;
+               while (!isLastChar(c[i]) && isSeparator(c[i],sep))  i++;
+               pointer = c + i;
+            }
+            else break;
+         }
+         else i++;
+      };
+   };
+
+   return type;
 };
 
 /* other functions */
 
-// expanding the bounds defining the 3D boxes (to help SPG to converge)
-void expandBounds(int n,int *e,double **X,double **lX,double **uX,double factor)
+// creating the box with a predefined range
+// -> i is the vertex rank for which the box needs to be created
+// -> X[k][i] contains the coordinates of the vertex (k = 1,2,3)
+// -> range is the specified interval range over the 3 dimensions
+// -> the output are lX[k][i] and uX[k][i], for all i and k
+void createBox(int i,double **X,double range,double **lX,double **uX)
 {
-   int i,j,k;
-   int min,max;
+   int k;
 
-   // verifying whether there are new not-yet expanded boxes
-   min = e[0];  max = min;
-   for (i = 1; i < n; i++)
+   range = 0.5*range;
+   for (k = 0; k < 3; k++)
    {
-      if (min > e[i])  min = e[i];
-      if (max < e[i])  max = e[i];
+      lX[k][i] = X[k][i] - range;
+      uX[k][i] = X[k][i] + range;
+   };
+};
+
+// expanding the bounds of a given vertex box as long as the added parts contain feasible positions
+// -> i is the rank of the vertex whose box needs to be expanded
+// -> v is the VERTEX array
+// -> [lX,uX] is the list of boxes
+// -> be is the "bound expanding" factor (ie, the added range at every expansion)
+// -> eps is the tolerance error used for verify whether the added part to the box contains feasible positions
+// -> in output, the list [lX,uX] is unchanged expect for the ith box, which is expanded 
+//   (at least one expansion step is performed)
+void expandBounds(int i,VERTEX *v,double **lX,double **uX,double be,double eps)
+{
+   int k,m;
+   double *tmp,*d1,*d2,*d3,*d4;
+   bool min,max,feasibility;
+   REFERENCE *ref;
+
+   // computing the number of reference distances
+   m = numberOfDistances(v[i].ref);
+
+   // memory allocation to keep the distances (avoids to compute them twice)
+   d1 = allocateVector(m);  d2 = allocateVector(m);
+   d3 = allocateVector(m);  d4 = allocateVector(m);
+
+   // computing the box distance to reference vertices
+   k = 0;  ref = v[i].ref;
+   while (ref != NULL)
+   {
+      d1[k] = box_distance(i,otherVertexId(ref),lX,uX,d2+k);
+      ref = ref->next;
+      k++;
    };
 
-   if (min != max)
+   do // performing the expansions
    {
-      // reversing the previous bound-expansion effect
-      for (i = 0; i < n; i++)
+      // one (more) expansion
+      lX[0][i] = lX[0][i] - be;  uX[0][i] = uX[0][i] + be;
+      lX[1][i] = lX[1][i] - be;  uX[1][i] = uX[1][i] + be;
+      lX[2][i] = lX[2][i] - be;  uX[2][i] = uX[2][i] + be;
+
+      // recomputing the distance with the expanded box
+      // and verifying feasibility of expanded part
+      k = 0;  ref = v[i].ref;  feasibility = false;
+      while (ref != NULL)
       {
-         for (k = 0; k < 3; k++)
-         {
-            j = e[i];
-            while (j > 0 && lX[k][i] + (j+1)*factor < X[k][i] && X[k][i] < uX[k][i] - (j+1)*factor)
-            {
-               lX[k][i] = lX[k][i] + j*factor;
-               uX[k][i] = uX[k][i] - j*factor;
-               j--;
-            };
-         };
-         e[i] = 0.0;
+         d3[k] = box_distance(i,otherVertexId(ref),lX,uX,d4+k);
+         min = lowerBound(ref) >= d3[k] - eps && upperBound(ref) <= d1[k] + eps;
+         max = lowerBound(ref) >= d2[k] - eps && upperBound(ref) <= d4[k] + eps;
+         feasibility = feasibility || min || max;
+         ref = ref->next;
+         k++;
       };
+
+      // swapping distances [d1,d2] and [d3,d4] to prepare next iteration
+      tmp = d1;  d1 = d3;  d3 = tmp;
+      tmp = d2;  d2 = d4;  d4 = tmp;
    }
-   else
+   while (feasibility);
+
+   // ending
+   freeVector(d1);  freeVector(d2);
+   freeVector(d3);  freeVector(d4);
+};
+
+// recentering the bounds defining the vertex boxes around new coodinates in X
+// -> from a mathematical point of view, the recentering procedure can be described as follows:
+//    1. every box is translated in the 3D space so that its center corresponds now to the position in X
+//    2. the intersection between the old box and the new translated box is performed
+//    3. the intersection is expanded as long as the added parts contain feasible positions
+// -> v is a VERTEX array, with size n
+// -> X is the corresponding set of 3D coordinates
+// -> [lX,uX] is the list of vertex boxes, to be recentered
+// -> be is the "bound expanding" factor
+// -> eps is the tolerance error used for verify whether the added part to the box contains feasible positions
+// -> in output, the list [lX,uX] contains the recentered boxes
+void reCenterBounds(int n,VERTEX *v,double **X,double **lX,double **uX,double be,double eps)
+{
+   int i;
+   double range;
+
+   // recentering the box around every position in X
+   for (i = 0; i < n; i++)
    {
-      // expanding the bounds
-      for (i = 0; i < n; i++)
-      {
-         e[i]++;
-         for (k = 0; k < 3; k++)
-         {
-            lX[k][i] = lX[k][i] - e[i]*factor;
-            uX[k][i] = uX[k][i] + e[i]*factor;
-         };
-      };
+      // x coordinates
+      range = 0.5*(uX[0][i] - lX[0][i]);
+      if (X[0][i] - range > lX[0][i])  lX[0][i] = X[0][i] - range;
+      if (X[0][i] + range < uX[0][i])  uX[0][i] = X[0][i] + range;
+
+      // y coordinates
+      range = 0.5*(uX[1][i] - lX[1][i]);
+      if (X[1][i] - range > lX[1][i])  lX[1][i] = X[1][i] - range;
+      if (X[1][i] + range < uX[1][i])  uX[2][i] = X[2][i] + range;
+
+      // z coordinates
+      range = 0.5*(uX[2][i] - lX[2][i]);
+      if (X[2][i] - range > lX[2][i])  lX[2][i] = X[2][i] - range;
+      if (X[2][i] + range < uX[2][i])  uX[2][i] = X[2][i] + range;
+
+      // re-expanding the bounds as long as feasible positions are added
+      expandBounds(i,v,lX,uX,be,eps);
    };
 };
 
@@ -386,37 +709,7 @@ double projection(double x,double a,double b,double eps)
    };
 };
 
-// counting the number of digits forming an integer number
-int numberOfDigits(int integer)
-{
-   int nd = 0;
-   while (integer > 0)
-   {
-      integer = integer/10;
-      nd++;
-   };
-   return nd;
-};
-
-// removing the extension from the input file (if such an extension is present)
-// it creates a new string with the file name without extension
-char* removExtension(char *filename)
-{
-   int i,k;
-   char* output = strdup(filename);
-
-   k = strlen(output) - 1;
-   while (k >= 0 && output[k] != '.' && output[k] != '/')  k--;
-   if (output[k] == '.')
-   {
-      output[k] = '\0';
-      for (i = k + 1; i < strlen(output); i++)  output[k] = '\0';
-   };
-
-   return output;
-};
-
-// finding the minimum value among three double values
+// finding the minimum of three double values
 double minimum(double a,double b,double c)
 {
    double min = a;
@@ -425,7 +718,7 @@ double minimum(double a,double b,double c)
    return min;
 };
 
-// finding the maximum value among three double values
+// finding the maximum of three double values
 double maximum(double a,double b,double c)
 {
    double max = a;
@@ -434,24 +727,28 @@ double maximum(double a,double b,double c)
    return max;
 };
 
+/* Help */
+
 // BP usage - function invoked when too few arguments are passed to MDjeep
 // -----------------------------------------------------------------------
 
 void mdjeep_usage(void)
 {
    fprintf(stderr,"mdjeep: too few arguments\n");
-   fprintf(stderr,"        syntax: ./mdjeep [options] instance.nmr\n");
+   fprintf(stderr,"        syntax: ./mdjeep [options] MDfile.mdf\n");
    fprintf(stderr," Options:\n");
-   fprintf(stderr,"          -v | change input data format to previous versions (argument 0.1 or 0.2, with the same effect)\n");
-   fprintf(stderr,"          -e | sets the tolerance epsilon (needs an extra argument, double, default is 0.001)\n");
-   fprintf(stderr,"          -r | sets the resolution parameter (needs an extra argument, double, default is 1.0)\n");
-   fprintf(stderr,"        -sym | only one symmetric half of the tree is explored (argument 1 or 2)\n");
-   fprintf(stderr,"          -1 | the algorithm stops at the first solution\n");
+   fprintf(stderr,"          -1 | the specified method stops at the first solution (always true for SPG)\n");
+   fprintf(stderr,"          -l | specifies after how many solutions the method should stop (applies only to BP)\n");
+   fprintf(stderr,"        -sym | only one symmetric half of the tree is explored (for BP, argument may be 1 or 2)\n");
    fprintf(stderr,"          -p | prints the best found solution in a text file\n");
    fprintf(stderr,"          -P | prints all found solutions (in the same text file)\n");
    fprintf(stderr,"             |  (when using -1, options -p and -P have the same effect)\n");
-   fprintf(stderr,"          -f | specifies the output format (default is \"txt\", may be changed to \"pdb\")\n");
+   fprintf(stderr,"          -f | specifies the output format (default is \"xyz\", may be changed to \"pdb\")\n");
    fprintf(stderr,"     -consec | verifies whether the consecutivity assumption is satisfied\n");
-   fprintf(stderr,"  -nomonitor | does no show the current layer number during the execution to improve performace\n");
+   fprintf(stderr,"  -nomonitor | does not show the current layer number during the execution to improve performance\n");
+   fprintf(stderr,"          -r | obsolete, resolution parameter can now be specified in MDfile (method field)\n");
+   fprintf(stderr,"          -e | obsolete, tolerance epsilon can now be specified in MDfile (method field)\n");
+   fprintf(stderr,"          -v | obsolete, file formats can now be specified in MDfile (instance field)\n");
+   fprintf(stderr," Please refer to the documentation for the MDfile syntax.\n");
 };
 

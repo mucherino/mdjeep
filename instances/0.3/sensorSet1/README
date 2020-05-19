@@ -1,0 +1,14 @@
+
+This set of instances is released with the version 0.3.2 of MDjeep
+
+The instances are generated to resemble sensor network localization problems in 3D.
+
+In a predefined box of the three-dimensional space, points are randomly placed and their relative distances
+are computed: distances below a predefined threshold are included in the instance, all others are neglected
+as far as the discretization assumptions are already satisfied (otherwise some additional distances above the
+threshold are considered). Shortest distances are considered as "exact" (their lower and upper bound coincide, 
+there are at least 2 per vertex with rank >= 3), all others are intervals having a range of 0.1.
+
+The total number of vertices is randomly chosen between 50 and 150, and the number of digits used to represent
+the distances is also randomly chosen, and ranging between 2 and 10.
+

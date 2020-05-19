@@ -9,93 +9,67 @@
               Jul 28 2019  v.0.3.0  the function DDF is adapted to the new data structures
                                     LDE and MDE values are now computed in another functions (objfun.c)
               Mar 21 2020  v.0.3.1  function BoxDDF added
+              May 19 2020  v 0.3.2  DDF and BoxDDF now output the partial error
+                                    BoxDDF uses the function box_distance (distance.c)
 ******************************************************************************************************/
 
 #include "bp.h"
 
-double boxeps = 0.1;
-
 // Direct Distance Feasibility pruning device
-// -> it outputs the number of distances that are not satisfied
-int DDF(int id,VERTEX *v,double **X,double eps)
+// -> id is the vertex id for which it is necessary to verify the reference distances
+// -> v is the set of VERTEX structures (with size > id), and X is the current conformation
+// -> DDF outputs the partial error on the entire set of reference distances related to the vertex id
+//   (the partial error is computed as the sum of the MDE terms related to this id)
+double DDF(int id,VERTEX *v,double **X)
 {
-   int count;
-   double dist;
+   int n;
+   double error,dist,diff;
    REFERENCE *ref = v[id].ref;
 
-   count = 0;
+   // collecting distances and verifying error
+   n = 0;  error = 0.0;
    while (ref != NULL)
    {
-      dist = distance(ref->otherId,id,X);
-      if (isExactDistance(ref,eps))
-      {
-         if (fabs(lowerBound(ref) - dist) > eps)  count++;
-      }
-      else
-      {
-         if (dist < lowerBound(ref) - eps)  count++;
-         if (dist > upperBound(ref) + eps)  count++;
-      }
+      n++;
+      dist = distance(otherVertexId(ref),id,X);
+      diff = lowerBound(ref) - dist;  if (diff > 0.0)  error = error + diff;  // only one of the two
+      diff = dist - upperBound(ref);  if (diff > 0.0)  error = error + diff;  // per time can be true
       ref = ref->next;
    };
-   return count;
+
+   // normalizing over the number of reference distances
+   if (n != 0)  error = error/n;
+
+   return error;
 };
 
 // Box Direct Distance Feasibility pruning device
-// -> it works on the boxes used in the coarse-grained representation
-// -> it outputs the number of distances that are not satisfied
-int BoxDDF(int id,VERTEX *v,double **lX,double **uX,double eps)
+// -> id is the vertex id whose box needs to be verified for feasibility
+// -> v is the set of VERTEX structures (with size > id), and [lX,uX] is the set of boxes up to vertex id
+// -> DDF outputs the partial error on the entire set of reference distances related to the vertex id
+//   (the function box_distance is used to compute distances between pairs of boxes)
+double BoxDDF(int id,VERTEX *v,double **lX,double **uX)
 {
-   int i;
-   int count;
+   int n;
    int otherId;
-   double diff;
+   double error,diff;
    double min,max;
    REFERENCE *ref = v[id].ref;
 
-   count = 0;
+   // collecting distances and verifying error
+   n = 0;  error = 0.0;
    while (ref != NULL)
    {
-      if (isIntervalDistance(ref,eps))
-      {
-         min = 0.0;  max = 0.0;
-         otherId = ref->otherId;
-         for (i = 0; i < 3; i++)
-         {
-            if (uX[i][otherId] < lX[i][id])  // [lX,uX](otherId) | [lX,uX](id)
-            {
-               diff = lX[i][id] - uX[i][otherId];
-               min = min + diff*diff;
-               diff = uX[i][id] - lX[i][otherId];
-               max = max + diff*diff;
-            }
-            else if (uX[i][id] < lX[i][otherId])  // [lX,uX](id) | [lX,uX](otherId)
-            {
-               diff = lX[i][otherId] - uX[i][id];
-               min = min + diff*diff;
-               diff = uX[i][otherId] - lX[i][id];
-               max = max + diff*diff;
-            }
-            else  // they intersect, min distance component is 0
-            {
-               if (lX[i][otherId] < lX[i][id])
-                  diff = lX[i][otherId];
-               else
-                  diff = lX[i][id];
-               if (uX[i][otherId] > uX[i][id])
-                  diff = uX[i][otherId] - diff;
-               else
-                  diff = uX[i][id] - diff;
-               max = max + diff*diff;
-            };
-         };
-
-         min = sqrt(min);  max = sqrt(max);
-         if (max < lowerBound(ref) - boxeps || min > upperBound(ref) + boxeps)  count++;
-      };
+      otherId = otherVertexId(ref);
+      min = box_distance(id,otherId,lX,uX,&max);
+      diff = lowerBound(ref) - max;  if (diff > 0.0)  error = error + diff;  // only one of the two
+      diff = min - upperBound(ref);  if (diff > 0.0)  error = error + diff;  // per time can be true
       ref = ref->next;
    };
 
-   return count;
+   // normalizing over the number of reference distances
+   if (n != 0)  error = error/n;
+
+   return error;
 };
 

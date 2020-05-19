@@ -5,6 +5,8 @@
   Sources:    ansi C
   License:    GNU General Public License v.3
   History:    Jul 28 2019  v.0.3.0  introduced in this version
+              Mar 21 2020  v.0.3.1  no changes
+              May 19 2020  v.0.3.2  no changes
 ****************************************************************************************************/
 
 #include "bp.h"
