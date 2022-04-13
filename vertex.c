@@ -10,6 +10,7 @@
               May 19 2020  v.0.3.2  functions nullTriplet, isNullTriplet, isValidTriplet, cloneTriplet added
                                     the function findReferences is replaced by the functions nextTripletRef,
                                     isExactClique, findReferencesExactCase and findReferencesIntervalCase
+              Apr 13 2020  v.0.3.2  patch
 ************************************************************************************************************/
 
 #include "bp.h"
@@ -396,11 +397,11 @@ bool isExactClique(int id,VERTEX *v,triplet t,double eps,double *cosangle)
 // vertices (exact case)
 // -> it is supposed that all reference vertices for id are exact distances
 // -> the triplet that form an angle "far from" a multiple of pi/2
-// -> the cosine of the angle formed by the triplet is given in output
+// -> the cosine of angle formed by the triplet is given in output
 // -> if the function returns a null triplet, then the discretization assumptions may not be satisfied
 triplet findReferencesExactCase(int id,VERTEX *v,double eps,double *cosine)
 {
-   double cosbest,cosangle;
+   double best,cosangle;
    triplet t,refs;
 
    // computing the initial triplet
@@ -409,24 +410,28 @@ triplet findReferencesExactCase(int id,VERTEX *v,double eps,double *cosine)
    if (isNullTriplet(t))  return refs;
 
    // verifying all other triplets and computing the angle (its cosine) they form
-   cosbest = -1.0;
+   best = -2.0;
    do
    {
       if (isValidTriplet(t,eps))
       {
          cosangle = 0.0;
-         if (!isExactClique(id,v,t,eps,&cosangle))
+         if (isExactClique(id,v,t,eps,&cosangle))
          {
-            if (isNullTriplet(refs))  refs = cloneTriplet(t,eps);
-         }
-         else
-         {
-            if (cosangle < 0.0)  cosangle = -cosangle;
-            if (cosangle > cosbest && (1.0 - cosangle) > cosbest)
+            if (isNullTriplet(refs))
             {
-               cosbest = cosangle;
-               if (cosbest > 1.0 - cosangle)  cosbest = 1.0 - cosangle;
+               best = cosangle;
+               if (cosangle < 0.0)  best = -cosangle;
                refs = cloneTriplet(t,eps);
+            }
+            else
+            {
+               if (cosangle < 0.0)  cosangle = -cosangle;  // in [0,1]
+               if (best > cosangle)  // we want it to be as close as possible to 0, so we minimize
+               {
+                  best = cosangle;
+                  refs = cloneTriplet(t,eps);
+               };
             };
          };
       };

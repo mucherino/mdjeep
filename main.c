@@ -12,6 +12,7 @@
               Mar 21 2020  v.0.3.1  using new functions of "vertex" to verify the instance properties
                                     precomputing all triplets of reference vertices
               May 19 2020  v.0.3.2  introduction of MDfiles, possibility to select the method to run
+              Apr 13 2022  v.0.3.2  patch
 *****************************************************************************************************/
 
 #include "bp.h"
@@ -24,7 +25,7 @@ int main(int argc, char *argv[])
    int fidx,verr;
    int it,flag;
    size_t nlines,linelen,wordlen;
-   bool clique,smallcosine;
+   bool clique,smallsine;
    bool check_consec;
    double **X;
    double obj,cosine;
@@ -386,7 +387,7 @@ int main(int argc, char *argv[])
 
       // the definition of the reference vertices depends on the presence of interval distances
       // for instances with exact distances only: the code below only verifies that the flattest triplet is not "too flat"
-      smallcosine = false;
+      smallsine = false;
       for (i = 3; i < n; i++)
       {
          if (info.exact || onlyPreciseDistances(v[i].ref,14))
@@ -408,7 +409,7 @@ int main(int argc, char *argv[])
                free(v);
                return 1;
             };
-            if (fabs(cosine) < op.eps)  smallcosine = true;
+            if (fabs(sqrt(1.0 - cosine*cosine)) < op.eps)  smallsine = true;
          }
          else
          {
@@ -423,9 +424,9 @@ int main(int argc, char *argv[])
             };
          };
       };
-      if (smallcosine)
+      if (smallsine)
       {
-         fprintf(stderr,"mdjeep: warning: some triplets of reference vertices form a angle whose cosine is very close to zero (tolerance is %g)\n",op.eps);
+         fprintf(stderr,"mdjeep: WARNING: some triplets of reference vertices form a angle whose sine is very close to zero (tolerance is %g)\n",op.eps);
       };
    };
 

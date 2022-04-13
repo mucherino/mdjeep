@@ -9,6 +9,7 @@
               Jun 28 2019  v.0.3.0  new and more efficient organization of data structures and functions
               Mar 21 2020  v.0.3.1  adding triplet structure and new function prototypes
               May 19 2020  v.0.3.2  reorganization of OPTION structure, new function prototypes
+              Apr 13 2022  v.0.3.2  patch
 ********************************************************************************************************/
 
 #include <stdio.h>
@@ -190,7 +191,7 @@ bool isNullTriplet(triplet t);
 bool isValidTriplet(triplet t,double eps);
 triplet cloneTriplet(triplet t,double eps);
 triplet nextTripletRef(REFERENCE *ref,triplet t,double eps);
-bool isExactClique(int id,VERTEX *v,triplet t,double eps,double *angle);
+bool isExactClique(int id,VERTEX *v,triplet t,double eps,double *cosangle);
 triplet findReferencesExactCase(int id,VERTEX *v,double eps,double *cosine);
 triplet findReferencesIntervalCase(int id,VERTEX *v,double eps);
 void printDistanceList(int n,VERTEX *v,bool symmetric);

@@ -5,7 +5,12 @@ Bug report
 
 MDjeep 0.3.2
 
-No bugs found up to now
+The method implemented in the main for the identification of triplets of reference vertices was raising a false 
+warning. The warning is supposed to warn the user about the collinearity of the reference vertices. This bug
+was discovered by Wagner Rocha and has been fixed in the commit "version 0.3.2 patch".
+
+The cosomega function could have been stuck in an infinite loop in some particular conditions. This bug was
+discovered by Simon Hengeveld and has been fixed in the commit "version 0.3.2 patch".
 
 ----------
 

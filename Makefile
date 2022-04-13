@@ -9,6 +9,7 @@
 #             Jul 28 2019  v.0.3.0  third release (added files vertex.c, distance.c, objfun.c, spg.c, splitime.c)
 #             Mar 21 2020  v.0.3.1  no new files added
 #             May 19 2020  v.0.3.2  file readfile.c added
+#             Apr 13 2022  v.0.3.2  patch
 #################################################################################################################
 
 

@@ -14,6 +14,7 @@
               May 19 2020  v.0.3.2  functions for analyzing and reading input distance file added
                                     functions createBox and reCenterBounds added
                                     function expandBounds reimplemented
+              Apr 13 2020  v.0.3.2  patch
 *****************************************************************************************************/
 
 #include "bp.h"
@@ -318,9 +319,10 @@ double cosomega(int i3,int i2,int i1,int i,VERTEX *v,double **X,double range,dou
       e = 1.0 - b*b;
       f = 1.0 - c*c;
 
-      // preparing for next loop
+      // preparing for next loop?
       if (range == 0.0)  r = r + eps;
       if (range == 1.0)  r = r - eps;
+      if (r == range)  break;
    };
 
    // perform correction if error is "relatively small"

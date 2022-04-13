@@ -2,7 +2,7 @@
 *** MD-jeep, version 0.3.2 ***
 
 The Branch & Prune algorithm for Discretizable Distance Geometry
-Copyright (C) 2020, Mucherino, Goncalves, Lavor, Liberti, Lin, Maculan
+Copyright (C) 2022, A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
 GNU General Public License v.3
 
 This program is free software: you can redistribute it and/or modify it under the terms of the 
@@ -122,7 +122,7 @@ MDjeep input arguments), such as the printing parameters. As new methods will be
 may be subject to change: we'll try our best to guarantee the compatibility for future versions of MDjeep, at 
 least for near versions.
 
-Example of use with the new set pf proteins instances with low precision distances:
+Example of use for solving protein instances with low precision distances (proteinSet2) :
 
  mdjeep -1 instances/0.3/proteinSet2/proteins.mdf
 
@@ -137,7 +137,7 @@ Follows a list of main publications:
      An Efficient Exhaustive Search for the Discretizable Distance Geometry Problem with Interval Data,
      to appear in IEEE Conference Proceedings, Federated Conference on Computer Science and Information Systems (FedCSIS19), 
      Workshop on Computational Optimization (WCO19), 
-     Leipzig, Germany, September 2019. (in "publication.ref.pdf")
+     Leipzig, Germany, September 2019. (in "publication-ref.pdf")
 
  [2] A. Mucherino, J-H. Lin, D.S. Gonçalves, 
      A Coarse-Grained Representation for Discretizable Distance Geometry with Interval Data, 
