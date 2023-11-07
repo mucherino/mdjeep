@@ -12,6 +12,17 @@ was discovered by Wagner Rocha and has been fixed in the commit "version 0.3.2 p
 The cosomega function could have been stuck in an infinite loop in some particular conditions. This bug was
 discovered by Simon Hengeveld and has been fixed in the commit "version 0.3.2 patch".
 
+The arclength in splitOmegaIntervals was not properly computed. The strategy for expanding the boxes is
+probably responsable for alleviating the negative impacts of this bug. This bug was fixed in the commit
+"version 0.3.2 patch 2".
+
+Since the version 0.3.0, MDjeep attempts avoiding to generate solutions that are too close to other found
+solutions. This is regulated by the resolution parameter. However, the comparisons were actually performed
+too early, i.e. at tree levels where potentially the two compared solutions could still consistently diverge. 
+This bug was discovered by Therese Malliavin and was fixed in the commit "version 0.3.2 patch 2".
+
+WARNING: Fixing this very last bug made MDjeep slower in finding all solutions for certain instances.
+
 ----------
 
 MDjeep 0.3.1

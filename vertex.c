@@ -10,7 +10,7 @@
               May 19 2020  v.0.3.2  functions nullTriplet, isNullTriplet, isValidTriplet, cloneTriplet added
                                     the function findReferences is replaced by the functions nextTripletRef,
                                     isExactClique, findReferencesExactCase and findReferencesIntervalCase
-              Apr 13 2020  v.0.3.2  patch
+              Apr 13 2022  v.0.3.2  patch (findReferencesExactCase)
 ************************************************************************************************************/
 
 #include "bp.h"

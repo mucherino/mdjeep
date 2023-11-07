@@ -14,7 +14,8 @@
               May 19 2020  v.0.3.2  functions for analyzing and reading input distance file added
                                     functions createBox and reCenterBounds added
                                     function expandBounds reimplemented
-              Apr 13 2020  v.0.3.2  patch
+              Apr 13 2022  v.0.3.2  patch (cosomega)
+              Nov  7 2023  v.0.3.2  patch 2 (splitOmegaIntervals)
 *****************************************************************************************************/
 
 #include "bp.h"
@@ -153,6 +154,7 @@ void splitOmegaIntervals(Omega *current,double radius,double resolution)
    int div;
    double range,l,u;
    double arclength,diff;
+   double halfrad;
    Omega *next;
 
    if (current != NULL)
@@ -162,7 +164,11 @@ void splitOmegaIntervals(Omega *current,double radius,double resolution)
          l = current->l;
          u = current->u;
          diff = u - l;
-         arclength = radius*diff;
+         halfrad = 0.5*radius;
+         arclength = diff/halfrad;
+         if (arclength < -1.0)  arclength = -1.0;
+         if (arclength >  1.0)  arclength =  1.0;
+         arclength = halfrad*asin(arclength);  // patch 2 of version 0.3.2
          div = 1;
          while (arclength/div > resolution)  div++;
          if (div > 1)

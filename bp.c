@@ -13,6 +13,7 @@
               May 19 2020  v.0.3.2  new bound expansion technique in bp version for interval distances
                                     bp_exact may choose the "best" triplet of discretization vertices
                                     a time limit for both bp implementations can now be set up
+              Nov  7 2023  v.0.3.2  patch 2
 *********************************************************************************************************/
 
 #include "bp.h"
@@ -292,21 +293,6 @@ void bp(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
       // if the current partial solution is OK (either since the beginning, or after local optimization)
       if (perr < op.eps)
       {
-         // verifying whether the partial solution is too close to the previous one
-         if (check)
-         {
-            dist = 0.0;
-            for (j = 0; j <= i; j++)
-            {
-               dist = dist + pairwise_distance(X[0][j],X[1][j],X[2][j],S.pX[0][j],S.pX[1][j],S.pX[2][j]);
-            };
-            dist = dist/(i+1);
-            if (dist < op.r)
-            {
-               goto NEXT;  // skip this branch
-            };
-         };
-
          if (i < n - 1)  
          {
             // next vertex
@@ -314,7 +300,22 @@ void bp(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
          }
          else
          {
-            // solution found
+            // verifying whether the new found solution is too close to the previous one
+            if (check)
+            {
+               dist = 0.0;
+               for (j = 0; j < n; j++)
+               {
+                  dist = dist + pairwise_distance(X[0][j],X[1][j],X[2][j],S.pX[0][j],S.pX[1][j],S.pX[2][j]);
+               };
+               dist = dist/n;
+               if (dist < op.r)
+               {
+                  goto NEXT;  // skip this branch
+               };
+            };
+
+            // we accept the new solution if we reach this point
             info->nsols = info->nsols + 1;
 
             // we will start to compare new solutions with previous ones
