@@ -8,6 +8,7 @@
                                     data structures
               Mar 21 2020  v.0.3.1  adding numberOfExactDistances and rangeOfDistance
               May 19 2020  v.0.3.2  adding box_distance and nextDistance
+              Aug 13 2026  v.0.3.3  revising onlyPreciseDistances
 ****************************************************************************************************/
 
 #include "bp.h"
@@ -185,20 +186,15 @@ bool onlyPreciseDistances(REFERENCE *ref,int ndigits)
    int i;
    double eps;
 
-   // definition of eps 
-   eps = 1.0;  for (i = 0; i < ndigits; i++)  eps = 0.1*eps;
+   if (ndigits < 0)  return false;  // just in case...
+   eps = pow(10.0,-ndigits);  // constructing the required eps
 
    // performing the verification
-   if (ref != NULL)
+   while (ref != NULL)
    {
-      if (isIntervalDistance(ref,eps))  return false;
-      if (precisionOf(ref->lb) < ndigits)  return false;
-      while (ref->next != NULL)
-      {
-         if (isIntervalDistance(ref->next,eps))  return false;
-         if (precisionOf(ref->next->lb) < ndigits)  return false;
-         ref = ref->next;
-      };
+      if (isIntervalDistance(ref,eps)) return false;
+      if (precisionOf(ref->lb) < ndigits) return false;
+      ref = ref->next;
    };
 
    // all tests passed, all distances are precise
@@ -228,7 +224,7 @@ REFERENCE* nextDistance(REFERENCE *current)
 bool isExactDistance(REFERENCE *ref,double eps)
 {
    if (ref != NULL)
-      return upperBound(ref) - lowerBound(ref) <= eps;
+      return fabs(upperBound(ref) - lowerBound(ref)) <= eps;
    return false;
 };
 
@@ -254,7 +250,7 @@ REFERENCE* nextExactDistance(REFERENCE *current,double eps)
 bool isIntervalDistance(REFERENCE *ref,double eps)
 {
    if (ref != NULL)
-      return upperBound(ref) - lowerBound(ref) > eps;
+      return fabs(upperBound(ref) - lowerBound(ref)) > eps;
    return false;
 };
 

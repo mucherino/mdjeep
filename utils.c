@@ -16,6 +16,7 @@
                                     function expandBounds reimplemented
               Apr 13 2022  v.0.3.2  patch (cosomega)
               Nov  7 2023  v.0.3.2  patch 2 (splitOmegaIntervals)
+              Aug 13 2026  v.0.3.3  robustness of precisionOf
 *****************************************************************************************************/
 
 #include "bp.h"
@@ -365,7 +366,7 @@ int precisionOf(double real)
 {
    int nd = 0;
    if (real < 0.0)  real = -real;
-   while (real != floor(real))
+   while (fabs(real - round(real)) > 1e-9 && nd < 15)
    {
       real = 10.0*real;
       nd++;

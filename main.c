@@ -13,6 +13,7 @@
                                     precomputing all triplets of reference vertices
               May 19 2020  v.0.3.2  introduction of MDfiles, possibility to select the method to run
               Apr 13 2022  v.0.3.2  patch
+              Aug 13 2026  v.0.3.3  RMSD to evaluate similarity between pairs of computed solutions
 *****************************************************************************************************/
 
 #include "bp.h"
@@ -41,7 +42,7 @@ int main(int argc, char *argv[])
    FILE *input;
 
    // welcome message
-   fprintf(stderr,"MD-jeep 0.3.2\n");
+   fprintf(stderr,"MD-jeep 0.3.3\n");
    input = NULL;
 
    // checking input arguments
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
    op.symmetry = 0;  op.monitor = true;  op.be = 0.10;
    info.exact = false;  info.consec = false;
    info.ncalls = 0;  info.nspg = 0;  info.nspgok = 0; 
-   info.nsols = 0;  info.maxsols = 10;  info.pruning = 0;  
+   info.nsols = 0;  info.maxsols = 100;  info.pruning = 0;  
    info.best_sol = 0;  info.best_mde = INFTY;  info.best_lde = INFTY;
    check_consec = false;
 
@@ -129,7 +130,7 @@ int main(int argc, char *argv[])
          op.allone = 1;
          fidx++;
       }
-      else if (!strcmp(argv[fidx],"-l"))  // New!
+      else if (!strcmp(argv[fidx],"-l"))
       {
          if (fidx + 1 >= argc - 1)
          {

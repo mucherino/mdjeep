@@ -1,34 +1,34 @@
 
 # MDjeep
 
-**MDjeep** is a software tool for Discretizable Distance Geometry (version 0.3.2).
+**MDjeep** is a software tool for Discretizable Distance Geometry (version 0.3.3).
 
-Copyright (C) 2024, A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
+Copyright (C) 2026, A. Mucherino, D.S. Goncalves, C. Lavor, L. Liberti, J-H. Lin, N. Maculan
 
 GNU General Public License v.3 (see below).
 
-Discretizable Distance Geometry consists of a subclass of problems for which 
-the search space can be discretized and reduced to a tree. Given a graph $G=(V,E,d)$, 
-with vertex set $V$, edge set $E$ indicating whether the distance between two vertices 
-is known or not, and a weight function $d$ providing the numerical values for such 
-distances, an instance of this problem (in dimension 3) falls in the discretizable 
-subclass where there exists a *vertex order* on $V$ such that:
+Discretizable Distance Geometry consists of a subclass of problems for which the 
+search space can be discretized and reduced to a tree. Given a graph $G=(V,E,d)$, with 
+vertex set $V$, edge set $E$ indicating whether the distance between two vertices is 
+known, and a weight function $d$ providing the numerical values for such distances,
+an instance of this problem (in dimension 3) falls into the discretizable subclass 
+if there exists a *vertex order* on $V$ such that:
 
 1. the first 3 vertices in the order form a clique with exact distances;
-2. for all other vertices with rank $i > 3$, there must exist three reference 
+2. for all other vertices with rank $i > 3$, there exist three reference 
    vertices $j_1$, $j_2$ and $j_3$, such that:
    - $j_1 < i$, $j_2 < i$, $j_3 < i$, $(j_1,i) \in E$, $(j_2,i) \in E$, $(j_3,i) \in E$.
 
 In this version, we suppose that only one of the three distances $d(j_1,i)$, $d(j_2,i)$ 
 and $d(j_3,i)$ can be represented by an interval, while the others are supposed to be 
-exact (ie, its lower and upper bounds are closer than the predefined error tolerance). 
+exact (ie, their lower and upper bounds are closer than the predefined error tolerance). 
 
-Two methods are currently implemented in ```MDjeep``` for the solution of the instances. 
-The Branch-and-Prune (BP) algorithm is specifically designed to solve instances satisfying 
-the discretization assumptions given above. The Spectral Projected Gradient (SPG) is an 
-algorithm for local optimization, which may be either run alone, or as a refinement step 
-in BP. For more information about these two algorithms, please refer to our list of 
-publications below.
+Two methods are currently implemented in ```MDjeep``` for the solution of distance geometry
+instances. The Branch-and-Prune (BP) algorithm is specifically designed to solve instances 
+satisfying the discretization assumptions given above. The Spectral Projected Gradient (SPG) 
+algorithm is designed for local optimization and can be executed either independently or as 
+a refinement step within BP. For more information about these two algorithms, please refer 
+to our list of publications below.
 
 Since version 0.3.0, ```MDjeep``` is able to solve instances containing both exact and 
 interval distance values. Although initially written for problems arising in the context 
@@ -44,7 +44,7 @@ and for running the solution methods:
 The MDfile is supposed to contain the specifications for a certain number of predefined "fields". 
 Every field key-word is followed by its name; key-word and name need to be separated by a colon (:). 
 Every value given in MDfiles appears on a single line and needs to respect the following syntax 
-(blank characters and tabs cannot be included in names or values, as they both act as separators):
+(blank characters and tabs cannot be included in names or values):
 
 	name [colon] value
 
@@ -57,39 +57,39 @@ In the MDfile, the first mandatory field is "instance". Any string of characters
 blanks and tabs) is a valid name for the instance. The attributes "file", "format" and "separator" 
 need to be specified in the MDfile in the subsequent lines, starting with the key-word "with":
 
-- *file*: it's the path and name of the distance file, where distances are arranged line by line
-- *format*: it's the format that ```MDjeep``` expects to find for the distance file
-- *separator*: this is the character that serves as a separator in the distance file
+- *file*: it's the path and name of the distance file, where distances are arranged line by line;
+- *format*: it's the format that ```MDjeep``` expects to find for the distance file;
+- *separator*: this is the character that serves as a separator in the distance file.
 
 The format can include the following elements:
 
-- ```Id1``` (nonnegative integer, mandatory), identifier of vertex 1 (in the line)
-- ```Id2``` (nonnegative integer, mandatory), identifier of vertex 2 (in the line)
-- ```groupId1``` (integer), group identifier of vertex 1
-- ```groupId2``` (integer), group identifier of vertex 2
-- ```Name1``` (char string), the name of vertex 1
-- ```Name2``` (char string), the name of vertex 2
-- ```groupName1``` (char string), the group name of vertex 1
-- ```groupName2``` (char string), the group name of vertex 2
-- ```lb``` (double, mandatory), the lower bound for the distance between vertex 1 and 2
-- ```ub``` (double, mandatory), the upper bound for the distance between vertex 1 and 2
+- ```Id1``` (nonnegative integer, mandatory), identifier of vertex 1 (in the line);
+- ```Id2``` (nonnegative integer, mandatory), identifier of vertex 2 (in the line);
+- ```groupId1``` (integer), group identifier of vertex 1;
+- ```groupId2``` (integer), group identifier of vertex 2;
+- ```Name1``` (char string), the name of vertex 1;
+- ```Name2``` (char string), the name of vertex 2;
+- ```groupName1``` (char string), the group name of vertex 1;
+- ```groupName2``` (char string), the group name of vertex 2;
+- ```lb``` (double, mandatory), the lower bound for the distance between vertex 1 and 2;
+- ```ub``` (double, mandatory), the upper bound for the distance between vertex 1 and 2.
 
 Notice that:
 
 - if the distance file contains additional information that ```MDjeep``` does not need to load, the format 
   element ```ignore``` can be used to skip this information;
-- the integer vertex labels need to be consecutive, but the smallest label is not supposed to be equal 
-  to 0 (neither to 1); the only constraint for the smallest label is that it needs to be nonnegative;
+- the integer vertex labels need to be consecutive, but there is no predetermined value for the smallest 
+  label: the only constraint is that it needs to be nonnegative;
 - the format compatible with ```MDjeep``` versions 0.1 and 0.2 is ```Id1 Id2 lb ub Name1 Name2 groupName1 groupName2```;
 - the format introduced in ```MDjeep``` 0.3.0 is ```Id1 Id2 groupId1 groupId2 lb ub Name1 Name2 groupName1 groupName2```;
 - the separator is one single character, and it needs to be specified between single quotes; blank 
-  characters and tabs are always separators, so if not specified, the default separators are all blank 
-  characters and tabs.
+  characters and tabs are always separators, so if not specified otherwise, all blank characters and 
+  tabs are the only separators.
 
 Another mandatory field of the MDfile is the "method". Two method names can be specified in the current 
 version of ```MDjeep```: either "bp", or "spg" (see above). In both cases, a predefined set of attributes 
 can then be specified on the subsequent lines of the MDfile through the key-word "with". The reader can 
-refer to the examples of MDfile provided with our instances to discover the several attributes that can 
+refer to the examples of MDfile provided with our instances to find out the several attributes that can 
 be set up. Many of such attributes have default values: if not specifed in the MDfile, the default value 
 are automatically used. Other attributes are mandatory: when using SPG as a main method, for example, the 
 path and name of the text file containing the starting point (attribute "startpoint"), as well as the 
@@ -102,7 +102,7 @@ be considered.
 
 Notice that it is possible to include comments in the MDfiles: very line starting with the character ```#``` 
 is ignored by ```MDjeep```. Even if not specified as a separator, blank characters and tabs cannot be part 
-of attribute values. They basically work as sort of "general separators".
+of attribute values. 
 
 ```MDjeep``` options (you can access to this list by running ```MDjeep``` without arguments):
 
@@ -119,7 +119,7 @@ of attribute values. They basically work as sort of "general separators".
 	        -e | obsolete, tolerance epsilon can now be specified in MDfile (method field)
 	        -v | obsolete, file formats can now be specified in MDfile (instance field)
 
-Notice that the use of option -nomonitor can actually improve ```MDjeep``` performances; moreover, it is 
+Notice that the use of option -nomonitor can improve ```MDjeep``` performances; moreover, it is 
 recommended to use it when redirecting stdout to a file.
 
 Since the current version of ```MDjeep```, part of the parameters can be specified through the MDfile, another 
@@ -131,53 +131,69 @@ of ```MDjeep```.
 
 Example of use for solving protein instances with low precision distances (proteinSet2) :
 
-	mdjeep -1 instances/0.3/proteinSet2/proteins.mdf
+	mdjeep -1 -P -f pdb instances/0.3/proteinSet2/proteins.mdf
 
 If ```MDjeep``` takes too long to solve your instance, you can terminate it with the ^C signal and verify the 
-current partial solution in the output file (it will be created before termination if one of the two options ```-p``` 
-or ```-P``` were used).
+current partial solution in the output file (the partial solution is saved before termination only when
+using one of the two options ```-p``` or ```-P```).
+
+## Recommendation
+
+We recommend to carefully adapt the resolution parameter used in the bp method to the range of your 
+interval distances!
 
 ## Recent changes
+
+### Version 0.3.3 vs 0.3.2
+
+The primary novelty lies in how generated solutions are compared during tree exploration. As in 
+previous versions, if a newly discovered solution is too similar to a previously accepted one, 
+it is discarded. In versions 0.3.0 through 0.3.2, this comparison was based directly on Cartesian 
+coordinates. Although generally discouraged, this approach yielded reasonable approximations 
+in our specific case because subsets of the Cartesian coordinates were identical. 
+In version 0.3.3, we introduce a feature that computes the Root Mean Square Deviation (RMSD) 
+between the candidate solutions. Our implementation adapts the method proposed in:
+
+- D.L. Theobald, *Rapid Calculation of RMSDs using a Quaternion-based Characteristic Polynomial*,
+  Foundations of Crystallography **61**(4), 478-480, 2005.
 
 ### Version 0.3.2 vs 0.3.1
 
 #### Box expanding technique
 
-The main novelty in version 0.3.2 is given by the strategy for generating and updating the boxes used in the
-coarse-grained representation implemented in the BP algorithm to deal with instances containing interval distances. 
-First of all, in the versions 0.3.x (with x < 2), the arcs that are used to define the boxes for the current vertex 
-$v$ are computed by using only one possible position for every reference vertex $u$. As a consequence, when the box 
-is computed (in a way to entirely contain the arc), it cannot be guaranteed that it actually covers the entire portion 
-of space for the vertex $v$ where all reference vertices are satisfied. If another position for some of the reference 
-vertices $u$ is considered, then a "similar" arc can be computed, which however doesn't "stand" in the same position 
-in space: it actually "moves" wrt the first computed arc.
+Version 0.3.2 introduces a new strategy for generating and updating boxes in the coarse-grained 
+representation used by the BP algorithm for interval distance instances. Previously, in versions 
+0.3.0 and 0.3.1, the arcs defining the bounding box for a vertex $v$ relied on just one fixed 
+position for each reference vertex $u$. Consequently, the resulting box did not necessarily cover 
+the entire spatial region where all reference constraints for $v$ are satisfied. When considering 
+alternative positions for reference vertices $u$, the resulting arc shifts position in space 
+rather than remaining static, requiring an updated box-generation strategy.
 
-For this reason, the bound expanding technique (already implemented in a primitive version since ```MDjeep``` 0.3.0) 
-is applied to every initially computed box as soon as they are created. The initial box is related to the arc where 
-the current positions of the reference vertices $u$ are considered, and where the middle distance of the only reference 
-interval distance is selected. The expansion of a box is stopped only when the newly added positions in the box are not 
-feasible w.r.t. all reference distances. With this bound expanding technique, the boxes are able to cover a larger
-portion of the space, where the selected positions are freely to move during the refinement step of the BP algorithm.
-Of course, the box is only a rough approximation of the true portion of space where the positions for a vertex are
-feasible. For this reason, every time SPG is invoked to perform the refinement step, and the vertex positions are
-"moved" inside the boxes with the aim of reducing the overall error on the distances, all involved boxes are 
-subsequently recentered, so that this rough approximation provided by the boxes is more accurate around the 
-currently selected vertex position.
+To address this issue, the bound-expansion technique, originally implemented in a primitive form 
+in MDjeep 0.3.0, is now applied immediately to every initial box upon creation. The initial box 
+is derived from the arc using the current positions of reference vertices $u$ and the midpoint 
+of the single interval distance. The expansion continues until any newly added positions become 
+infeasible with respect to the reference distances. This expansion allows the boxes to cover a 
+larger portion of space, giving vertex positions more flexibility to adjust during the BP 
+refinement step. Since a box provides only a rough approximation of the feasible region, 
+any SPG invocation during refinement that updates vertex positions to reduce overall distance 
+error will subsequently recenter all involved boxes. This recentering improves the accuracy 
+of the bounding approximation around the updated positions.
 
-The box centering technique basically consists in creating a new box centered in the new selected vertex position and
-having the same size of the previous box over the 3 dimensions, and by intersecting it with this previous box. Then,
-the bound expanding technique is applied again to the result of the intersection to enlarge it until all reference
-distances can be satisfied.
+The box centering technique basically consists in creating a new box centered in the new selected 
+vertex position and having the same size of the previous box over the 3 dimensions, and by intersecting 
+it with this previous box. Then, the bound expanding technique is applied again to the result of the 
+intersection to enlarge it until all reference distances can be satisfied.
 
 #### Revision of DDF and BoxDDF
 
 The DDF and BoxDDF functions have been revised so that they can also output the current partial error. As a 
 consequence, the verification of the constraints in the BP algorithm is now performed after invoking such functions 
-(the verification is not performed anymore directly by these two functions). This modification allowed to implement 
-a new version of ```bp_exact``` where all possible triplets of discretization vertices may be tested and the one 
-leading to the least error propagation is chosen. When the consecutivity assumption is satisfied, ```bp_exact``` 
-initially chooses the 3 immediate preceding vertices: in this case, the verification of other triplets is 
-performed only when it is detected that the triplet of immediate preceding vertices forms a flat angle.
+(the verification is not performed anymore directly by these two functions). This modification allowed us to 
+implement a new version of ```bp_exact``` where all possible triplets of discretization vertices may be tested 
+and the one leading to the least error propagation is chosen. When the consecutivity assumption is satisfied, 
+```bp_exact``` initially chooses the 3 immediate preceding vertices: in this case, the verification of other 
+triplets is performed only when the triplet of immediate preceding vertices forms a flat angle.
 
 #### Using information about symmetric vertices
 
@@ -189,7 +205,7 @@ DMDGP class). Given a vertex $v$, and for a given selection of its reference ver
 at $v$ can be defined: we know that both branches can contain a valid realization only if the vertex $v$ is 
 *symmetric*. Therefore, if during the exploration, in ```bp_exact```, a valid realization was already found by exploring 
 the first branch rooted at $v$, then it is not necessary to explore the second branch, unless it is symmetric (the 
-verification of the symmetries is performed in the main by invoking the function findSymmetries). However, for the 
+verification of the symmetries is performed in the main by invoking the function ```findSymmetries```). However, for the
 vertices that are symmetric, and for the instances which do not satisfy the consecutivity assumption, this theoretical 
 result cannot be exploited. In the current version of ```MDjeep```, when the information about the symmetries 
 cannot be exploited, we only use the information about cosine of omega, so that to prune the second branch of 
@@ -198,8 +214,8 @@ branch had not led to the construction of any valid realizations.
 
 #### Introducing the MDfile
 
-The ```MDjeep``` file (MDfile, with extension ```mdf```) is introduced in ```MDjeep``` 0.3.2, which allows us to 
-provide, in one unique text file, the specifications necessary to load a DDGP instance, as well as to select the 
+The ```MDjeep``` file (MDfile, with extension ```mdf```) is introduced in ```MDjeep``` 0.3.2, which allows the user 
+to provide, in one unique text file, the specifications necessary to load a DDGP instance, as well as to select the 
 method we wish to use to solve it, with all its attributes. Apart from the instance name (that is subsequently 
 used by ```MDjeep``` to make reference to the instance), the text file containing the distance list defining the 
 instance can directly be specified in the MDfile, together with the format for every line of this distance list. 
@@ -228,24 +244,24 @@ vertices). Before invoking the BP method, it is verified whether the discretizat
 
 With the idea to implement in the future other distance geometry methods inside ```MDjeep``` (as a main method 
 or as a refinement method), it is now possible to launch with ```MDjeep``` the execution of the spectral projected
-gradient method (SPG), already implemented since ```MDjeep``` 0.3.0 but used then only as a refinement method. The 
-selected solution method can be specified in the MDfile, together with its list of attributes (many attributes have 
-their own default values, which will be used in case they won't be specified). The attributes startpoint (name of 
-the file containing the  starting point) and maxit (maximum number of iterations) are mandatory when using SPG 
+gradient method (SPG), already implemented since ```MDjeep``` 0.3.0 but employed so far only as a refinement method. 
+The selected solution method can be specified in the MDfile, together with its list of attributes (many attributes 
+have their own default values, which will be used in case they won't be specified). The attributes startpoint (name 
+of the file containing the starting point) and maxit (maximum number of iterations) are mandatory when using SPG 
 as a main method.
 
 #### New and old options
 
-A new option (which can be specified through ```MDjeep``` input arguments) has been added, which allows to specify 
-the maximum number of solutions that the selected method should find (it currently applies only to BP, as SPG can 
-provide one solution only). This option comes as an alternative to option ```-1```, where the number of solutions 
-is limited to 1; with the new option -l, the number of solution can be limited to any specified value. The default 
-maximum number of solutions is set to 10 in ```MDjeep``` 0.3.2.
+A new option (which can be specified through ```MDjeep``` input arguments) has been added, which allows the user
+to specify the maximum number of solutions that the selected method is supposed to find (it currently applies only 
+to BP, because SPG can provide only one solution). The option ```-1``` indicates that the number of solutions must
+be limited to 1; the new option ```-l```, the number of solution can be limited to any specified (positive) value. 
+The default maximum number of solutions was set to 10 in ```MDjeep``` version 0.3.1.
 
-The options ```-e```, ```-r``` and ```-v``` are now obsolete. The values of the tolerance eps (option ```-e```) and 
-the resolution parameter (option ```-r```) can now be set up directly in the MDfile (which is read by ```MDjeep```
-before verifying the other command line options). As for the option ```-v```, the previous file formats used in 
-```MDjeep``` versions 0.1 and 0.2 can now be explicitly specified in the MDfile
+The options ```-e```, ```-r``` and ```-v``` became obsolete in version 0.3.2. The values of the tolerance eps 
+(option ```-e```) and the resolution parameter (option ```-r```) can now be set up directly in the MDfile 
+(which is read by ```MDjeep``` before verifying the other command line options). As for the option ```-v```, 
+the previous file formats used in ```MDjeep``` versions 0.1 and 0.2 can now be explicitly specified in the MDfile
 (the format is: ```Id1 Id2 lb ub Name1 Name2 groupName1 groupName2```).
 
 ### Version 0.3.1 vs 0.3.0
@@ -258,9 +274,9 @@ solve the input instance, it is necessary that the function ```isDDGP``` gives a
 of ```isDMDGP``` is negative, ```MDjeep``` can still solve the instance (this verification is in fact now optional, 
 and performed automatically only when the instance is composed only by exact distances).
 
-The verification of the existence of the symmetric vertices is also now performed by an external function of the
-"vertex" C file (function ```findSymmetries```). The new implemented method has a lower complexity wrt the method
-implemented directly in the main of version 0.3.0 (old complexity: $|V|^3$, new worst-case complexity: $|V|*|E|$,
+The verification of the existence of the symmetric vertices is also now performed by an external function included
+in the "vertex" C file (function ```findSymmetries```). The new implemented method has a lower complexity wrt the 
+method implemented directly in the main of version 0.3.0 (old complexity: $|V|^3$, new worst-case complexity: $|V|*|E|$,
 where $V$ is the instance vertex set, and $E$ is its edge set).
 
 #### Preselection of reference vertices
@@ -297,26 +313,26 @@ point out that the resolution parameter is now disabled when the instance at han
 
 From the most recent to the oldest.
 
-**WARNING**: The very last bug fix made ```MDjeep``` slower when exploring the entire search tree for 
-certain instances.
+### MDjeep 0.3.3 (this version)
 
-### MDjeep 0.3.2 (current version)
+We now use the standard ```pow``` function in ```onlyPreciseDistances``` to avoid a potential floating-point 
+approximation error.
+
+### MDjeep 0.3.2
 
 Since the version 0.3.0, ```MDjeep``` attempts avoiding to generate solutions that are too close to other 
 found solutions. This is regulated by the resolution parameter. However, the comparisons were actually performed
 too early, i.e. at tree levels where potentially the two compared solutions could still consistently diverge.
-This bug was discovered by Therese Malliavin and was fixed in the commit "version 0.3.2 patch 2".
 
-The arclength in splitOmegaIntervals was not properly computed. The strategy for expanding the boxes is
-probably responsable for alleviating the negative impacts of this bug. This bug was fixed in the commit
-"version 0.3.2 patch 2".
+Bug discovered by Therese Malliavin and fixed in the commit "version 0.3.2 patch 2": the comparison between
+the current solution and the last accepted solution was performed too "early" (before the current solution
+had been completely built).
 
-The method implemented in the main function for the identification of triplets of reference vertices was raising 
-a false warning. This warning is supposed to warn the user about the collinearity of the reference vertices. 
-The bug was discovered by Wagner Rocha and has been fixed in the commit "version 0.3.2 patch".
+Bug discovered by Wagner Rocha and fixed in the commit "version 0.3.2 patch": false warning in the function
+in charge of identifying triplets of reference vertices.
 
-The cosomega function could have been stuck in an infinite loop in some particular conditions. This bug was
-discovered by Simon Hengeveld and has been fixed in the commit "version 0.3.2 patch".
+Bug discovered by Simon Hengeveld and fixed in the commit "version 0.3.2 patch": the cosomega function
+could have run an infinite loop.
 
 ### MDjeep 0.3.0
 
@@ -326,8 +342,6 @@ included in order to "correct" a potential error propagation.
 
 The use of the bound expansion feature in SPG was allowing the generation of solutions that were not included 
 in the original set of boxes.
-
-Both bugs have been fixed for the release of ```MDjeep``` 0.3.1.
 
 ## References
 

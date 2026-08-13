@@ -1,5 +1,7 @@
 
 # sensorSet1
+#
+# may take too long to find multiple solutions
 
 instance: sensor
 with file: instances/0.3/sensorSet1/sensor056.nmr
@@ -16,7 +18,7 @@ with format: Id1 Id2 lb ub
 with separator: ' '
 
 method: bp
-with resolution: 5.0
+with resolution: 0.1
 with tolerance: 0.001
 with maxtime: 6000
 

@@ -1,5 +1,7 @@
 
 # proteinSet2
+#
+# consider to manually enable the vdW option in bp.c
 
 instance: protein
 with file: instances/0.3/proteinSet2/1hj0.nmr
@@ -14,7 +16,7 @@ with format: Id1 Id2 groupId1 groupId2 lb ub Name1 Name2 groupName1 groupName2
 with separator: ' '
 
 method: bp
-with resolution: 5.0
+with resolution: 1.0
 with tolerance: 0.001
 with maxtime: 6000
 

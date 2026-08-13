@@ -2,12 +2,12 @@
 # 2jmy
 
 instance: 2jmy
-with file: test/instances/0.3/proteinSet1/2jmy.nmr
+with file: instances/0.3/proteinSet1/2jmy.nmr
 with format: id1 id2 groupid1 groupid2 lb ub name1 name2 groupname1 groupname2
 with separator: ' '
 
 method: bp
-with resolution: 5.0
+with resolution: 1.0
 with tolerance: 0.001
 with maxtime: 600
 

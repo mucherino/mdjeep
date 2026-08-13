@@ -14,6 +14,7 @@
                                     bp_exact may choose the "best" triplet of discretization vertices
                                     a time limit for both bp implementations can now be set up
               Nov  7 2023  v.0.3.2  patch 2
+	      Aug 13 2026  v.0.3.3  RMSD to verify whether two given solutions are too close to each other
 *********************************************************************************************************/
 
 #include "bp.h"
@@ -24,6 +25,7 @@ bool newsol = false;
 bool backtracking = false;
 bool check = false;
 bool PRINTED = false;
+bool vdW = false;
 struct timeval startime;
 
 // signal catcher
@@ -300,16 +302,25 @@ void bp(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
          }
          else
          {
+            // NEW! verifying whether the new found solution contains clashes (only for proteins; vdW ~ 0.8)
+	    // --> this option can be manually enabled by setting the global variable vdW to true in this C file
+	    // --> both parameters (0.8 and -4) need to be manually controled by the user in the current version
+	    if (vdW)
+            {
+               for (j = 0; j < n; j++)
+               {
+                  for (k = 0; k < j - 4; k++)
+                  {
+                     if (pairwise_distance(X[0][k],X[1][k],X[2][k],X[0][j],X[1][j],X[2][j]) < 0.8)  goto NEXT;  // skip this branch
+                  };
+               };
+            };
+
             // verifying whether the new found solution is too close to the previous one
             if (check)
             {
-               dist = 0.0;
-               for (j = 0; j < n; j++)
-               {
-                  dist = dist + pairwise_distance(X[0][j],X[1][j],X[2][j],S.pX[0][j],S.pX[1][j],S.pX[2][j]);
-               };
-               dist = dist/n;
-               if (dist < op.r)
+               dist = rmsd(n,S.pX,X,50);  // NEW! "dist" is now the RMSD!
+               if (dist < op.r)              // 50 is maxit for the RMSD calculation
                {
                   goto NEXT;  // skip this branch
                };
@@ -324,6 +335,7 @@ void bp(int i,int n,VERTEX *v,double **X,SEARCH S,OPTION op,INFORMATION *info)
             // printing the solution (if requested)
             if (op.print > 1)
             {
+               // printing
                if (op.format == 0)
                   printfile(n,v,X,info->output,info->nsols);
                else

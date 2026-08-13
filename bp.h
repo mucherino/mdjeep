@@ -10,6 +10,7 @@
               Mar 21 2020  v.0.3.1  adding triplet structure and new function prototypes
               May 19 2020  v.0.3.2  reorganization of OPTION structure, new function prototypes
               Apr 13 2022  v.0.3.2  patch
+	      Aug 13 2026  v.0.3.3  RMSD to evaluate similarity between pairs of computed solutions
 ********************************************************************************************************/
 
 #include <stdio.h>
@@ -208,12 +209,18 @@ void crossProdVector(double *v1,double *v2,double *res);
 void printVector(size_t n,double *v);
 double* freeVector(double *v);
 double** allocateMatrix(size_t n,size_t m);
+void zeroMatrix(size_t n,size_t m,double **A);
+void squaredElementsMatrix(size_t n,size_t m,double **A,double **SA);
 void copyMatrix(size_t n,size_t m,double **source,double **dest);
 void copyCenterMatrix(size_t n,size_t m,double **source,double **dest);
 void differenceMatrix(size_t n,size_t m,double **A,double **B,double **C);
 bool areSameMatrix(size_t n,size_t m,double **A,double **B);
+double sumElementMatrix(size_t n,size_t m,double **A);
+double determinant3x3Matrix(double **A);
+double determinant4x4Matrix(double **A);
 void UMatrix(int i3,int i2,int i1,int i,double **X,double *U);
 void genCoordinates(int i1,int i,double **X,double *U,double di1i,double ctheta,double stheta,double comega,double somega);
+double rmsd(size_t n,double **coordsA,double **coordsB,size_t maxit);
 void printMatrix(size_t n,size_t m,double **a);
 double** freeMatrix(size_t n,double **a);
 
